@@ -52,6 +52,54 @@ export function tryReassemble(frames) {
   }
 }
 
+// --- Text-code fallback for when the camera / QR just won't cooperate ---
+//
+// Encoding: base64(JSON) + a 4-digit check code prefixed as "ZNP-<code>."
+// The receiver either scans the code from the sender's screen or has it
+// dictated / messaged over. Because it works via the clipboard + any
+// messaging app, this path is 100% reliable and needs no camera.
+
+function b64EncodeUtf8(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function b64DecodeUtf8(str) {
+  return decodeURIComponent(escape(atob(str)));
+}
+function codeFromString(str) {
+  // Deterministic 4-digit code derived from payload — same payload → same
+  // code, so sender & receiver can verify by eye ("code is 4271").
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  const n = Math.abs(h) % 10000;
+  return n.toString().padStart(4, '0');
+}
+
+export function encodePayloadAsText(payload) {
+  const json = JSON.stringify(payload);
+  const b64 = b64EncodeUtf8(json);
+  const code = codeFromString(b64);
+  return { text: 'ZNP-' + code + '.' + b64, code };
+}
+
+export function decodePayloadFromText(text) {
+  const s = (text || '').trim();
+  const m = s.match(/^ZNP-(\d{4})\.(.+)$/s);
+  if (!m) return { ok: false, error: 'Not a ZeroNetPay transfer code' };
+  const [, code, b64] = m;
+  if (codeFromString(b64) !== code) {
+    return { ok: false, error: 'Check code mismatch — the code may have been copied incompletely' };
+  }
+  try {
+    const payload = JSON.parse(b64DecodeUtf8(b64));
+    if (!payload || !Array.isArray(payload.tokens)) {
+      return { ok: false, error: 'Malformed transfer payload' };
+    }
+    return { ok: true, payload, code };
+  } catch (e) {
+    return { ok: false, error: 'Could not decode transfer code: ' + e.message };
+  }
+}
+
 export function parseFrame(text) {
   try {
     const obj = JSON.parse(text);

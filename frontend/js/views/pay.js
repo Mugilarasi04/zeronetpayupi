@@ -1,6 +1,6 @@
-import { rupeesPlain, toast, uuid } from '../util.js';
+import { rupeesPlain, toast, uuid, copyText, escapeHtml } from '../util.js';
 import { store } from '../store.js';
-import { chunkPayload, renderToCanvas } from '../qr.js';
+import { chunkPayload, renderToCanvas, encodePayloadAsText } from '../qr.js';
 import { authenticate as bioAuth } from '../biometric.js';
 
 export function renderPay(root, state, { refresh, navigate }) {
@@ -34,6 +34,24 @@ export function renderPay(root, state, { refresh, navigate }) {
       <div class="qr-wrap"><canvas id="qrCanvas"></canvas></div>
       <div style="height: 10px"></div>
       <div id="qrSteps" class="muted" style="text-align:center; font-size: 12px;"></div>
+
+      <div class="divider" style="margin: 14px 0;"></div>
+
+      <div class="card tight" style="background: var(--card-hi);">
+        <p style="margin: 0 0 6px 0;"><strong>Or share as text (if QR won't scan)</strong></p>
+        <p class="muted" style="margin: 0 0 8px 0; font-size: 12px;">
+          Check code:
+          <span id="checkCode" style="font-weight:800; font-size: 22px; letter-spacing: 4px; color:#86efac;">----</span><br/>
+          Sender & receiver see the same 4-digit code — that's how you verify.
+        </p>
+        <button class="btn" id="copyCode">📋 Copy transfer code</button>
+        <button class="btn ghost btn-sm" id="shareCode" style="margin-top: 6px;">💬 Share via WhatsApp / SMS</button>
+        <small class="muted" style="display:block; margin-top: 8px;">
+          Receiver: paste the copied code in the <strong>Receive</strong> tab's
+          "Or paste transfer code" box.
+        </small>
+      </div>
+
       <div style="height: 12px"></div>
       <div class="row">
         <button class="btn success" id="confirmSent">Sent ✓ (remove from wallet)</button>
@@ -133,6 +151,38 @@ export function renderPay(root, state, { refresh, navigate }) {
     auth.disabled = false;
     auth.style.display = 'none';
     amt.disabled = true;
+
+    // Build the text-code fallback and wire up copy/share.
+    const encoded = encodePayloadAsText(payload);
+    const checkCodeEl = root.querySelector('#checkCode');
+    if (checkCodeEl) checkCodeEl.textContent = encoded.code;
+    const copyBtn = root.querySelector('#copyCode');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        const ok = await copyText(encoded.text);
+        toast(ok ? `Copied — code ${encoded.code}` : 'Copy failed', ok ? 'good' : 'bad');
+      });
+    }
+    const shareBtn = root.querySelector('#shareCode');
+    if (shareBtn) {
+      shareBtn.addEventListener('click', async () => {
+        const msg =
+          `ZeroNetPay transfer — code ${encoded.code}%0A%0A` +
+          `Paste this into the Receive tab:%0A%0A` +
+          encodeURIComponent(encoded.text);
+        // Try native share first, fall back to WhatsApp deeplink.
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: `ZeroNetPay transfer ${encoded.code}`,
+              text: `Paste this in Receive tab:\n\n${encoded.text}`,
+            });
+            return;
+          } catch (_) { /* user cancelled or unsupported — fall through */ }
+        }
+        window.open(`https://wa.me/?text=${msg}`, '_blank');
+      });
+    }
 
     if (activeFrames.length === 1) {
       qrSteps.textContent = 'Hold steady — single frame';

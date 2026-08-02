@@ -1,6 +1,6 @@
 import { rupeesPlain, toast, uuid, isOnline } from '../util.js';
 import { store } from '../store.js';
-import { startScanner, parseFrame, tryReassemble } from '../qr.js';
+import { startScanner, parseFrame, tryReassemble, decodePayloadFromText } from '../qr.js';
 
 export function renderReceive(root, state, { refresh, trySyncPending }) {
   root.innerHTML = `
@@ -15,6 +15,21 @@ export function renderReceive(root, state, { refresh, trySyncPending }) {
       <div id="progress" class="muted" style="text-align:center; margin-top: 10px;">Initialising camera…</div>
       <div style="height: 12px"></div>
       <button id="stop" class="btn ghost">Stop scanner</button>
+    </section>
+
+    <section class="card" style="background: var(--card-hi);">
+      <h3>Or paste transfer code</h3>
+      <p class="muted" style="font-size: 13px;">
+        If the QR won't scan, ask the sender to tap <strong>Copy transfer code</strong>
+        and send it to you (WhatsApp / SMS / anything). Paste it below to import the tokens.
+      </p>
+      <textarea id="pasteCode" placeholder="ZNP-1234.eyJmcm9tIjp7...."
+        rows="4" style="width: 100%; padding: 10px; font-family: ui-monospace, monospace; font-size: 12px; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
+      <div style="height: 8px"></div>
+      <button id="importCode" class="btn">Import tokens</button>
+      <small class="muted" style="display:block; margin-top: 6px;">
+        Verify the 4-digit code shown on the sender's screen matches the one shown after paste.
+      </small>
     </section>
 
     <div id="result" hidden></div>
@@ -142,6 +157,40 @@ export function renderReceive(root, state, { refresh, trySyncPending }) {
     if (stopFn) stopFn();
     stopFn = null;
     progress.textContent = 'Scanner stopped.';
+  });
+
+  // Text-code paste-import fallback.
+  const pasteBox = root.querySelector('#pasteCode');
+  const importBtn = root.querySelector('#importCode');
+  importBtn.addEventListener('click', async () => {
+    const text = (pasteBox.value || '').trim();
+    if (!text) {
+      toast('Paste the transfer code first', 'bad');
+      pasteBox.focus();
+      return;
+    }
+    const r = decodePayloadFromText(text);
+    if (!r.ok) {
+      toast(r.error, 'bad');
+      return;
+    }
+    const totalPaise = r.payload.tokens.reduce((s, t) => s + t.value_paise, 0);
+    const proceed = confirm(
+      `Import ${r.payload.tokens.length} tokens = ₹${(totalPaise / 100).toFixed(2)}?\n\n` +
+      `Check code (must match sender's screen): ${r.code}\n\n` +
+      `From: ${(r.payload.from && r.payload.from.upiId) || 'unknown'}`,
+    );
+    if (!proceed) return;
+    importBtn.disabled = true;
+    importBtn.innerHTML = '<span class="spinner"></span> Importing…';
+    try {
+      await acceptPayment(r.payload);
+      pasteBox.value = '';
+    } catch (e) {
+      toast(e.message || 'Import failed', 'bad');
+      importBtn.disabled = false;
+      importBtn.textContent = 'Import tokens';
+    }
   });
 
   startCam();
