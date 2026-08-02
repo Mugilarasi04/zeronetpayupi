@@ -14,6 +14,7 @@ import { renderSettings } from './views/settings.js';
 import { renderDisburse } from './views/disburse.js';
 import { renderCashout } from './views/cashout.js';
 import { renderLock } from './views/lock.js';
+import { renderNotifications } from './views/notifications.js';
 import { isUnlocked, lockApp } from './lock.js';
 
 const state = {
@@ -225,6 +226,8 @@ function renderTab(name) {
       return renderDisburse(root, state, { navigate, refresh });
     case 'cashout':
       return renderCashout(root, state, { navigate, refresh });
+    case 'notifications':
+      return renderNotifications(root, state, { navigate, refresh });
     default:
       return renderHome(root, state, { navigate, refresh });
   }

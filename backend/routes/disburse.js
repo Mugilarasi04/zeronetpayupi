@@ -15,10 +15,11 @@ router.get('/pending', (req, res) => {
     .prepare(
       `SELECT s.id, s.amount_paise, s.token_count, s.created_at,
               s.disbursed, s.disbursed_at, s.disbursed_ref,
+              s.complaint_raised, s.complaint_at, s.complaint_note,
               u.upi_id AS receiver_upi, u.id AS receiver_id
          FROM settlements s
          JOIN users u ON u.id = s.receiver_id
-         ORDER BY s.disbursed ASC, s.created_at DESC
+         ORDER BY s.disbursed ASC, s.complaint_raised DESC, s.created_at DESC
          LIMIT 200`,
     )
     .all();
@@ -43,6 +44,9 @@ router.get('/pending', (req, res) => {
       disbursed: !!r.disbursed,
       disbursedAt: r.disbursed_at,
       disbursedRef: r.disbursed_ref,
+      complaintRaised: !!r.complaint_raised,
+      complaintAt: r.complaint_at,
+      complaintNote: r.complaint_note,
       deeplink,
       note,
     };
@@ -82,6 +86,58 @@ router.post('/:id/unmark', (req, res) => {
     )
     .run(req.params.id);
   res.json({ ok: r.changes === 1 });
+});
+
+/**
+ * List all settlements for a given receiver — used by the user's
+ * "My cashouts" view so they can see status (queued / paid / disputed)
+ * and raise complaints.
+ */
+router.get('/mine/:receiverId', (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT id, amount_paise, token_count, created_at,
+              disbursed, disbursed_at, disbursed_ref,
+              complaint_raised, complaint_at, complaint_note
+         FROM settlements
+         WHERE receiver_id = ?
+         ORDER BY created_at DESC
+         LIMIT 100`,
+    )
+    .all(req.params.receiverId);
+  res.json({
+    items: rows.map((r) => ({
+      id: r.id,
+      amount: r.amount_paise / 100,
+      tokenCount: r.token_count,
+      createdAt: r.created_at,
+      disbursed: !!r.disbursed,
+      disbursedAt: r.disbursed_at,
+      disbursedRef: r.disbursed_ref,
+      complaintRaised: !!r.complaint_raised,
+      complaintAt: r.complaint_at,
+      complaintNote: r.complaint_note,
+    })),
+  });
+});
+
+/**
+ * Receiver raises a complaint that payout hasn't arrived.
+ * Marks the settlement as disputed so the operator sees it flagged.
+ */
+router.post('/:id/complaint', (req, res) => {
+  const note = ((req.body && req.body.note) || 'Payout not received').slice(0, 300);
+  const r = db
+    .prepare(
+      `UPDATE settlements
+          SET complaint_raised = 1, complaint_at = ?, complaint_note = ?
+          WHERE id = ? AND disbursed = 0`,
+    )
+    .run(Date.now(), note, req.params.id);
+  if (r.changes === 0) {
+    return res.status(400).json({ error: 'settlement already paid or not found' });
+  }
+  res.json({ ok: true });
 });
 
 module.exports = router;

@@ -34,12 +34,20 @@ if (ESCROW_LOCKED && CLEAN_ESCROW_UPI) {
   writeSetting('escrow_upi_id', CLEAN_ESCROW_UPI);
 }
 
+// Optional operator contact — used by the frontend to build a WhatsApp
+// deeplink so users can ping the escrow holder when a payout is queued.
+// Format: country code + number, no + or spaces, e.g. "919876543210".
+const ESCROW_WHATSAPP = (process.env.ESCROW_WHATSAPP || '').trim();
+const ESCROW_OPERATOR_NAME = (process.env.ESCROW_OPERATOR_NAME || 'Escrow Operator').trim();
+
 router.get('/', (req, res) => {
   res.json({
     escrowUpiId: readSetting('escrow_upi_id'),
     escrowName: readSetting('escrow_name') || config.escrowBankName,
     configured: !!readSetting('escrow_upi_id'),
     locked: ESCROW_LOCKED,
+    escrowWhatsApp: ESCROW_WHATSAPP,
+    escrowOperatorName: ESCROW_OPERATOR_NAME,
   });
 });
 

@@ -203,9 +203,17 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px 4p
 .qr-wrap {
   display: grid; place-items: center;
   background: white; padding: 16px; border-radius: 16px;
-  margin: 8px auto 0; width: max-content;
+  margin: 8px auto 0;
+  max-width: min(300px, 92vw);   /* never wider than viewport minus a margin */
 }
-.qr-wrap canvas, .qr-wrap img { display: block; max-width: 100%; }
+.qr-wrap canvas, .qr-wrap img {
+  display: block;
+  width: 100%;                     /* scale down to fit the wrap on any screen */
+  max-width: 268px;                /* 300 - 16*2 padding */
+  height: auto;
+  image-rendering: pixelated;      /* keep QR modules sharp when scaled */
+  image-rendering: crisp-edges;
+}
 .scan-wrap {
   position: relative; aspect-ratio: 1 / 1; width: 100%; max-width: 320px;
   margin: 0 auto; border-radius: 16px; overflow: hidden; background: black;

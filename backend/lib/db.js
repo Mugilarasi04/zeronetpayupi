@@ -95,6 +95,9 @@ function ensureColumn(table, col, definition) {
 ensureColumn('settlements', 'disbursed', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('settlements', 'disbursed_at', 'INTEGER');
 ensureColumn('settlements', 'disbursed_ref', 'TEXT');
+ensureColumn('settlements', 'complaint_raised', 'INTEGER NOT NULL DEFAULT 0');
+ensureColumn('settlements', 'complaint_at', 'INTEGER');
+ensureColumn('settlements', 'complaint_note', 'TEXT');
 
 function normaliseValue(v) {
   if (v === undefined) return null;

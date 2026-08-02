@@ -78,4 +78,6 @@ export const api = {
   pendingDisbursements: () => call('GET', '/disburse/pending'),
   markDisbursed: (id, ref) => call('POST', `/disburse/${id}/mark-paid`, { ref }),
   unmarkDisbursed: (id) => call('POST', `/disburse/${id}/unmark`),
+  myCashouts: (receiverId) => call('GET', `/disburse/mine/${receiverId}`),
+  raiseComplaint: (id, note) => call('POST', `/disburse/${id}/complaint`, { note }),
 };

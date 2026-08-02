@@ -83,6 +83,7 @@ export function renderHome(root, state, { navigate }) {
 
     <div style="height: 8px"></div>
     <div class="row">
+      <button class="btn ghost btn-sm" data-go="notifications">🔔 My cashouts</button>
       <button class="btn ghost btn-sm" data-go="settings">⚙ Settings</button>
       <button class="btn ghost btn-sm" id="reset">Sign out / wipe device</button>
     </div>

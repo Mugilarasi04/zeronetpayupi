@@ -73,7 +73,19 @@
       "Bash(/opt/homebrew/bin/npm uninstall *)",
       "Bash(/opt/homebrew/bin/node -e \"const s = require\\('/Users/mugilarasims/Desktop/zeronetpay/node_modules/sqlite3'\\); console.log\\('OK', Object.keys\\(s\\)\\);\")",
       "Bash(rm -f backend/data/zeronetpay.db*)",
-      "Bash(/usr/bin/curl -sS -m 5 http://localhost:3000/api/settings)"
+      "Bash(/usr/bin/curl -sS -m 5 http://localhost:3000/api/settings)",
+      "Bash(/usr/bin/openssl rand *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Fix Docker build + point frontend at Render backend *)",
+      "Bash(git push *)",
+      "Bash(/usr/bin/curl -sS -m 8 -o /dev/null -w \"frontend HTTP %{http_code}\\\\n\" https://zeronetpayupi.pages.dev/)",
+      "Bash(/usr/bin/curl -sS -m 8 https://zeronetpayupi.pages.dev/config.js)",
+      "Bash(/usr/bin/curl -sS -m 8 https://zeronetpayupi.pages.dev/)",
+      "Bash(/usr/bin/curl -sS -m 8 -o /dev/null -w \"  /vendor/qrcode-generator.js  HTTP %{http_code}\\\\n\" https://zeronetpayupi.pages.dev/vendor/qrcode-generator.js)",
+      "Bash(/usr/bin/curl -sS -m 8 -o /dev/null -w \"  /vendor/jsQR.js              HTTP %{http_code}\\\\n\" https://zeronetpayupi.pages.dev/vendor/jsQR.js)",
+      "Bash(/usr/bin/curl -sS -m 8 https://zeronetpayupi.pages.dev/vendor/qrcode-generator.js)",
+      "Bash(/usr/bin/curl -sS -m 8 https://zeronetpayupi.pages.dev/js/qr.js)",
+      "Bash(git commit *)"
     ]
   }
 }

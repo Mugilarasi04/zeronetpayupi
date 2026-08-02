@@ -3,6 +3,26 @@ import { store } from '../store.js';
 import { rupeesPlain, toast, uuid, isOnline, escapeHtml } from '../util.js';
 import { authenticate as bioAuth } from '../biometric.js';
 
+/**
+ * Build a WhatsApp click-to-chat URL that pre-fills a payout-request message
+ * to the escrow operator. Works on any device — WhatsApp handles the
+ * rendering (Web on desktop, App on phone).
+ *
+ * phone: E.164 digits only, no +, e.g. "919876543210"
+ */
+function buildWhatsAppLink(phone, redeemResp, state) {
+  const settleId = (redeemResp.settlement && redeemResp.settlement.settlementId) || '';
+  const msg =
+    `Hi, I just cashed out ZeroNetPay tokens.%0A%0A` +
+    `*Amount:* ₹${redeemResp.creditAmount}%0A` +
+    `*Pay to UPI:* ${redeemResp.upiId || (state.user && state.user.upiId) || ''}%0A` +
+    `*From escrow:* ${(state.settings && state.settings.escrowUpiId) || ''}%0A` +
+    `*Reference:* ${settleId}%0A%0A` +
+    `Please release the payout. Track it at zeronetpayupi.com/notifications`;
+  const digits = String(phone).replace(/[^0-9]/g, '');
+  return `https://wa.me/${digits}?text=${msg}`;
+}
+
 export function renderCashout(root, state, { navigate, refresh }) {
   const total = state.tokens.reduce((s, t) => s + t.value_paise, 0);
   const ownCount = state.tokens.filter((t) => !t.received_from_upi).length;
@@ -182,10 +202,30 @@ export function renderCashout(root, state, { navigate, refresh }) {
             <p style="margin: 0 0 8px 0;"><strong>Next: receive your money</strong></p>
             <p class="muted" style="margin: 0 0 10px 0;">Tap below to open your UPI app. The escrow account
               (<strong>${escapeHtml((state.settings && state.settings.escrowUpiId) || '')}</strong>) will
-              pay <strong>${rupeesPlain(r.creditAmount * 100)}</strong> to <strong>${escapeHtml(r.upiId || state.user.upiId)}</strong>.
-              In the UPI app, select the escrow account when paying.</p>
+              pay <strong>${rupeesPlain(r.creditAmount * 100)}</strong> to <strong>${escapeHtml(r.upiId || state.user.upiId)}</strong>.</p>
             <a class="btn" id="payNow" href="${escapeHtml(deeplink)}" style="text-decoration:none; display:block; text-align:center;">↗ Open UPI app to receive ₹${r.creditAmount}</a>
           </div>
+
+          ${state.settings && state.settings.escrowWhatsApp ? `
+            <div style="height: 10px"></div>
+            <div class="card tight" style="background: rgba(37,211,102,0.10); border-color: rgba(37,211,102,0.3);">
+              <p style="margin: 0 0 6px 0;"><strong>🔔 Notify escrow operator</strong></p>
+              <p class="muted" style="margin: 0 0 10px 0; font-size: 12px;">
+                Send a WhatsApp message to
+                <strong>${escapeHtml(state.settings.escrowOperatorName || 'the operator')}</strong>
+                asking them to release your payout. If they don't pay within a reasonable time,
+                come to the <strong>Notifications</strong> tab and raise a complaint.
+              </p>
+              <a class="btn" style="background: #25D366; text-decoration:none; display:block; text-align:center; color: white;"
+                 href="${escapeHtml(buildWhatsAppLink(state.settings.escrowWhatsApp, r, state))}"
+                 target="_blank" rel="noopener">
+                💬 Message on WhatsApp
+              </a>
+            </div>
+          ` : ''}
+
+          <div style="height: 10px"></div>
+          <button id="notifications" class="btn ghost">View my cashouts</button>
 
           <div style="height: 10px"></div>
           <div class="row">
@@ -199,6 +239,8 @@ export function renderCashout(root, state, { navigate, refresh }) {
         await refresh();
         navigate('cashout');
       });
+      const notifBtn = result.querySelector('#notifications');
+      if (notifBtn) notifBtn.addEventListener('click', () => navigate('notifications'));
       go.style.display = 'none';
       toast('Redeemed — payout queued', 'good');
       await refresh();
