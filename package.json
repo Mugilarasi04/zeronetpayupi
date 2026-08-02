@@ -1,0 +1,21 @@
+{
+  "name": "zeronetpay",
+  "version": "1.0.0",
+  "description": "Offline UPI — device-bound digital token payments that work with zero internet.",
+  "main": "backend/server.js",
+  "scripts": {
+    "postinstall": "node scripts/setup-vendor.js",
+    "start": "node --experimental-sqlite backend/server.js",
+    "dev": "node --experimental-sqlite --watch backend/server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "jsqr": "^1.4.0",
+    "qrcode-generator": "^1.4.4"
+  },
+  "license": "MIT"
+}

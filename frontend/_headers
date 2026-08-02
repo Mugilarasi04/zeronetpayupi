@@ -1,0 +1,10 @@
+# Service worker must not be cached — otherwise stale SW can lock users
+# on an old app version.
+/service-worker.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+
+# Config.js holds the API base URL. Never cache it, so a Railway URL
+# change is picked up on next reload.
+/config.js
+  Cache-Control: no-cache

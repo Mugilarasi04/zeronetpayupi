@@ -1,0 +1,10 @@
+# Railway build config. Node 22 LTS (22.11+) supports --experimental-sqlite.
+
+[phases.setup]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm ci --omit=dev || npm install --omit=dev"]
+
+[start]
+cmd = "node --experimental-sqlite backend/server.js"

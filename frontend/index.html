@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0b1220" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="description" content="Offline UPI — pay anywhere with zero internet. Tokens settle automatically when the receiver comes online." />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <title>ZeroNetPay — Offline UPI</title>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-logo" aria-hidden="true">⚡</span>
+        <div class="brand-text">
+          <div class="brand-name">ZeroNetPay</div>
+          <div class="brand-tag">Offline UPI</div>
+        </div>
+      </div>
+      <div class="status">
+        <span id="netDot" class="dot" title="connectivity"></span>
+        <span id="netLabel">checking…</span>
+      </div>
+    </header>
+
+    <main id="view"></main>
+
+    <nav class="tabbar" aria-label="Primary">
+      <button data-tab="home" class="tab active">
+        <span class="ic">⌂</span><span>Home</span>
+      </button>
+      <button data-tab="load" class="tab">
+        <span class="ic">＋</span><span>Load</span>
+      </button>
+      <button data-tab="pay" class="tab">
+        <span class="ic">↗</span><span>Pay</span>
+      </button>
+      <button data-tab="receive" class="tab">
+        <span class="ic">↙</span><span>Receive</span>
+      </button>
+      <button data-tab="cashout" class="tab">
+        <span class="ic">₹</span><span>Cash out</span>
+      </button>
+    </nav>
+
+    <div id="toast" class="toast" hidden></div>
+  </div>
+
+  <!-- Runtime config (holds the API base URL). Loaded before app modules
+       so window.ZNP_CONFIG is available on import. Edit this file
+       post-deploy to point at your production backend. -->
+  <script src="/config.js"></script>
+
+  <!-- Vendor libs (copied from node_modules into /vendor at install time) -->
+  <script src="/vendor/qrcode-generator.js" defer></script>
+  <script src="/vendor/jsQR.js" defer></script>
+
+  <!-- App modules. Plain ES modules — no bundler required. -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

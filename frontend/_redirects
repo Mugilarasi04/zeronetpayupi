@@ -1,0 +1,4 @@
+# SPA fallback: any deep-link falls back to index.html, which then
+# routes client-side. Real files under /js /css /vendor /icons served
+# from disk first — this only kicks in for missing paths.
+/*    /index.html   200
