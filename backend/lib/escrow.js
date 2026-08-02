@@ -4,13 +4,13 @@ const { signToken, newId } = require('./crypto');
 
 const DENOM_PAISE = Math.round(config.tokenDenomination * 100);
 
-function getEscrowBalance() {
-  const row = db.prepare('SELECT balance_paise FROM escrow_account WHERE id = 1').get();
+async function getEscrowBalance() {
+  const row = await db.prepare('SELECT balance_paise FROM escrow_account WHERE id = 1').get();
   return row ? row.balance_paise : 0;
 }
 
-function tokensInCirculation() {
-  const row = db
+async function tokensInCirculation() {
+  const row = await db
     .prepare('SELECT COALESCE(SUM(value_paise), 0) AS total FROM tokens WHERE spent = 0')
     .get();
   return row.total || 0;
@@ -18,9 +18,9 @@ function tokensInCirculation() {
 
 /**
  * Atomically credit the escrow account and mint signed tokens for a user.
- * The invariant tokens_in_circulation == escrow_balance is preserved.
+ * Preserves the invariant tokens_in_circulation == escrow_balance.
  */
-function creditEscrowAndIssueTokens({ userId, deviceId, amountPaise, loadOrderId }) {
+async function creditEscrowAndIssueTokens({ userId, deviceId, amountPaise, loadOrderId }) {
   if (amountPaise <= 0) throw new Error('amount must be positive');
   if (amountPaise % DENOM_PAISE !== 0) {
     throw new Error(`amount must be a multiple of ${DENOM_PAISE / 100}`);
@@ -29,20 +29,14 @@ function creditEscrowAndIssueTokens({ userId, deviceId, amountPaise, loadOrderId
   const now = Date.now();
   const expiresAt = now + config.tokenExpiryDays * 24 * 60 * 60 * 1000;
 
-  const tx = db.transaction(() => {
-    db.prepare(
+  return db.transaction(async (tx) => {
+    await tx.run(
       `UPDATE escrow_account
          SET balance_paise = balance_paise + ?, updated_at = ?
-         WHERE id = 1`
-    ).run(amountPaise, now);
-
-    const insert = db.prepare(`
-      INSERT INTO tokens
-        (id, value_paise, issued_to_user_id, issued_to_device, issued_at, expires_at,
-         signature, spent, load_order_id)
-        VALUES (@id, @value_paise, @issued_to_user_id, @issued_to_device, @issued_at,
-                @expires_at, @signature, 0, @load_order_id)
-    `);
+         WHERE id = 1`,
+      amountPaise,
+      now,
+    );
 
     const issued = [];
     for (let i = 0; i < tokenCount; i++) {
@@ -56,50 +50,58 @@ function creditEscrowAndIssueTokens({ userId, deviceId, amountPaise, loadOrderId
         load_order_id: loadOrderId,
       };
       token.signature = signToken(token);
-      insert.run(token);
+      await tx.run(
+        `INSERT INTO tokens
+          (id, value_paise, issued_to_user_id, issued_to_device, issued_at, expires_at,
+           signature, spent, load_order_id)
+          VALUES (@id, @value_paise, @issued_to_user_id, @issued_to_device, @issued_at,
+                  @expires_at, @signature, 0, @load_order_id)`,
+        token,
+      );
       issued.push(token);
     }
     return issued;
   });
-
-  return tx();
 }
 
 /**
- * Mark a list of tokens as spent and credit the receiver.
+ * Mark tokens as spent and credit the receiver.
  * The caller is responsible for verifying signatures and freshness.
  */
-function debitEscrowAndSettle({ receiverId, tokens, senderDevice }) {
+async function debitEscrowAndSettle({ receiverId, tokens, senderDevice }) {
   const now = Date.now();
   const settlementId = newId('STL');
   const totalPaise = tokens.reduce((s, t) => s + t.value_paise, 0);
 
-  const tx = db.transaction(() => {
-    const markSpent = db.prepare(`
-      UPDATE tokens
-         SET spent = 1, spent_at = ?, spent_by_user_id = ?
-         WHERE id = ? AND spent = 0
-    `);
+  await db.transaction(async (tx) => {
     let spentCount = 0;
     for (const t of tokens) {
-      const r = markSpent.run(now, receiverId, t.id);
-      spentCount += r.changes;
+      const r = await tx.run(
+        `UPDATE tokens
+           SET spent = 1, spent_at = ?, spent_by_user_id = ?
+           WHERE id = ? AND spent = 0`,
+        now,
+        receiverId,
+        t.id,
+      );
+      spentCount += r.changes || 0;
     }
     if (spentCount !== tokens.length) {
       throw new Error('one or more tokens were already spent (race detected)');
     }
 
-    db.prepare(
+    await tx.run(
       `UPDATE escrow_account
          SET balance_paise = balance_paise - ?, updated_at = ?
-         WHERE id = 1`
-    ).run(totalPaise, now);
+         WHERE id = 1`,
+      totalPaise,
+      now,
+    );
 
-    db.prepare(`
-      INSERT INTO settlements
+    await tx.run(
+      `INSERT INTO settlements
         (id, receiver_id, sender_device, token_count, amount_paise, upi_ref, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       settlementId,
       receiverId,
       senderDevice || null,
@@ -110,7 +112,6 @@ function debitEscrowAndSettle({ receiverId, tokens, senderDevice }) {
     );
   });
 
-  tx();
   return { settlementId, totalPaise, tokenCount: tokens.length };
 }
 

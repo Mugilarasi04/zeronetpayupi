@@ -23,4 +23,4 @@ EXPOSE 3000
 # A persistent volume for SQLite so data survives container restarts.
 VOLUME ["/app/backend/data"]
 
-CMD ["node", "--experimental-sqlite", "backend/server.js"]
+CMD ["node", "backend/server.js"]
