@@ -32,7 +32,26 @@ async function call(method, path, body) {
     /* non-JSON response */
   }
   if (!res.ok) {
-    const e = new Error((data && data.error) || `HTTP ${res.status}`);
+    const err = (data && data.error) || `HTTP ${res.status}`;
+    // Auto-recover when the backend was restarted and lost our user record.
+    // Render's free tier uses ephemeral disk — SQLite resets on redeploy.
+    // We wipe local state and reload; the app will land on onboarding.
+    if (
+      (res.status === 404 || res.status === 401) &&
+      /user.*not.*found|receiver.*not.*found|invalid.*user/i.test(err)
+    ) {
+      try {
+        localStorage.removeItem('znp.user');
+        localStorage.removeItem('znp.device');
+        sessionStorage.removeItem('znp.unlocked');
+      } catch (_) { /* ignore */ }
+      alert(
+        'The backend was restarted and lost your session.\n\n' +
+        'The app will reload — just onboard again with your UPI ID.',
+      );
+      location.reload();
+    }
+    const e = new Error(err);
     e.status = res.status;
     throw e;
   }
