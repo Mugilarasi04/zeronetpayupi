@@ -12,15 +12,15 @@ import { authenticate as bioAuth } from '../biometric.js';
  */
 function buildWhatsAppLink(phone, redeemResp, state) {
   const settleId = (redeemResp.settlement && redeemResp.settlement.settlementId) || '';
-  const msg =
-    `Hi, I just cashed out ZeroNetPay tokens.%0A%0A` +
-    `*Amount:* ₹${redeemResp.creditAmount}%0A` +
-    `*Pay to UPI:* ${redeemResp.upiId || (state.user && state.user.upiId) || ''}%0A` +
-    `*From escrow:* ${(state.settings && state.settings.escrowUpiId) || ''}%0A` +
-    `*Reference:* ${settleId}%0A%0A` +
-    `Please release the payout. Track it at zeronetpayupi.com/notifications`;
+  const rawMsg =
+    `Hi, I just cashed out ZeroNetPay tokens.\n\n` +
+    `Amount: ₹${redeemResp.creditAmount}\n` +
+    `Pay to UPI: ${redeemResp.upiId || (state.user && state.user.upiId) || ''}\n` +
+    `From escrow: ${(state.settings && state.settings.escrowUpiId) || ''}\n` +
+    `Reference: ${settleId}\n\n` +
+    `Please release the payout. Track it at zeronetpayupi.com`;
   const digits = String(phone).replace(/[^0-9]/g, '');
-  return `https://wa.me/${digits}?text=${msg}`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(rawMsg)}`;
 }
 
 export function renderCashout(root, state, { navigate, refresh }) {
@@ -147,6 +147,11 @@ export function renderCashout(root, state, { navigate, refresh }) {
 
     go.innerHTML = '<span class="spinner"></span> Redeeming with server…';
 
+    // Make sure we have fresh settings so the WhatsApp button appears.
+    try {
+      state.settings = await api.getSettings();
+    } catch (_) { /* offline, keep last */ }
+
     try {
       const tokenPayload = picked.map((t) => ({
         id: t.id,
@@ -159,6 +164,39 @@ export function renderCashout(root, state, { navigate, refresh }) {
       }));
       const r = await api.redeem(state.user.id, tokenPayload, state.user.deviceId);
       const okIds = new Set(r.accepted || []);
+
+      // ALL tokens rejected as unknown means the backend restarted and
+      // wiped SQLite between mint and now (Render free tier).
+      // Explain clearly rather than silently failing.
+      const rejected = r.rejected || [];
+      const allUnknown =
+        okIds.size === 0 &&
+        rejected.length > 0 &&
+        rejected.every((x) => x.reason === 'unknown_token');
+      if (allUnknown) {
+        const doReset = confirm(
+          "Your tokens are stale — the backend restarted and lost them " +
+          "(this happens on Render's free tier).\n\n" +
+          "Tap OK to WIPE this device and start fresh. You'll re-onboard, " +
+          "load again, and cashout will work.\n\n" +
+          "Tap Cancel to just close (tokens stay in wallet but won't be redeemable).",
+        );
+        if (doReset) {
+          try {
+            await store.clearTokens();
+            await store.clearLedger();
+            localStorage.removeItem('znp.user');
+            localStorage.removeItem('znp.device');
+            sessionStorage.removeItem('znp.unlocked');
+          } catch (_) { /* ignore */ }
+          location.reload();
+          return;
+        }
+        go.disabled = false;
+        go.textContent = 'Authenticate & cash out';
+        return;
+      }
+
       // Remove only the accepted tokens from local wallet.
       const acceptedTokens = picked.filter((t) => okIds.has(t.id));
       await store.removeTokens(acceptedTokens.map((t) => t.id));
@@ -174,7 +212,7 @@ export function renderCashout(root, state, { navigate, refresh }) {
         });
       }
 
-      const rejected = (r.rejected || []).length;
+      const rejectedCount = rejected.length;
       // Build the disbursement UPI deeplink immediately so the user can pay
       // themselves from the escrow account in one tap — closes the
       // tokens-to-money loop without leaving the app.
@@ -195,7 +233,7 @@ export function renderCashout(root, state, { navigate, refresh }) {
           <h3 style="color: #86efac;">✔ Cash-out submitted</h3>
           <p style="font-size: 28px; font-weight: 700; margin: 8px 0;">${rupeesPlain(r.creditAmount * 100)}</p>
           <p class="muted">${acceptedTokens.length} tokens redeemed to <strong>${escapeHtml(r.upiId || state.user.upiId)}</strong>.</p>
-          ${rejected > 0 ? `<p class="muted" style="color:#fca5a5;">⚠ ${rejected} token(s) rejected by server.</p>` : ''}
+          ${rejectedCount > 0 ? `<p class="muted" style="color:#fca5a5;">⚠ ${rejectedCount} token(s) rejected by server.</p>` : ''}
 
           <div style="height: 10px"></div>
           <div class="card tight" style="background: var(--card-hi);">

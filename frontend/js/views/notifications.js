@@ -2,14 +2,14 @@ import { api } from '../api.js';
 import { rupeesPlain, escapeHtml, toast, formatRelative } from '../util.js';
 
 function whatsappLink(phone, item, state) {
-  const msg =
-    `Hi, I'm still waiting for my ZeroNetPay payout.%0A%0A` +
-    `*Amount:* ₹${item.amount}%0A` +
-    `*Pay to UPI:* ${(state.user && state.user.upiId) || ''}%0A` +
-    `*Reference:* ${item.id}%0A%0A` +
+  const rawMsg =
+    `Hi, I'm still waiting for my ZeroNetPay payout.\n\n` +
+    `Amount: ₹${item.amount}\n` +
+    `Pay to UPI: ${(state.user && state.user.upiId) || ''}\n` +
+    `Reference: ${item.id}\n\n` +
     `Requested ${new Date(item.createdAt).toLocaleString()}.`;
   const digits = String(phone).replace(/[^0-9]/g, '');
-  return `https://wa.me/${digits}?text=${msg}`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(rawMsg)}`;
 }
 
 export async function renderNotifications(root, state, { navigate, refresh }) {
