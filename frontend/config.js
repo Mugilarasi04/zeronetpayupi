@@ -1,6 +1,4 @@
-// Runtime configuration for the deployed frontend.
-// Points at the backend tunnel running on Mugilarasi's Mac.
-
+// Points the deployed frontend at the Render backend.
 window.ZNP_CONFIG = {
-  apiBase: 'https://provider-october-gray-collected.trycloudflare.com/api',
+  apiBase: 'https://zeronetpayupi-api.onrender.com/api',
 };
