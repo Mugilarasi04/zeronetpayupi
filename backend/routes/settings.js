@@ -23,12 +23,15 @@ const ESCROW_LOCKED = String(process.env.ESCROW_LOCKED || '').toLowerCase() === 
 if (!readSetting('escrow_name')) {
   writeSetting('escrow_name', config.escrowBankName);
 }
+// Trim whitespace/newlines that dashboards sometimes append when pasting.
+const CLEAN_ESCROW_UPI = (process.env.ESCROW_UPI_ID || '').trim();
+
 // When ESCROW_LOCKED, force the DB value to match .env on every startup —
 // prevents drift from earlier unlocked editing. Otherwise only seed if empty.
-if (ESCROW_LOCKED && process.env.ESCROW_UPI_ID) {
-  writeSetting('escrow_upi_id', process.env.ESCROW_UPI_ID);
-} else if (!readSetting('escrow_upi_id') && process.env.ESCROW_UPI_ID) {
-  writeSetting('escrow_upi_id', process.env.ESCROW_UPI_ID);
+if (ESCROW_LOCKED && CLEAN_ESCROW_UPI) {
+  writeSetting('escrow_upi_id', CLEAN_ESCROW_UPI);
+} else if (!readSetting('escrow_upi_id') && CLEAN_ESCROW_UPI) {
+  writeSetting('escrow_upi_id', CLEAN_ESCROW_UPI);
 }
 
 router.get('/', (req, res) => {
