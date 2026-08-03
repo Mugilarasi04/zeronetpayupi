@@ -162,7 +162,23 @@ export function renderCashout(root, state, { navigate, refresh }) {
         expires_at: t.expires_at,
         signature: t.signature,
       }));
-      const r = await api.redeem(state.user.id, tokenPayload, state.user.deviceId);
+      let r;
+      try {
+        r = await api.redeem(state.user.id, tokenPayload, state.user.deviceId);
+      } catch (netErr) {
+        // Give a clear message for the two most common causes.
+        if (netErr.code === 'offline') {
+          toast('Backend unreachable — check your internet', 'bad');
+        } else if (netErr.status === 404 || /not found/i.test(netErr.message || '')) {
+          toast('Server can\'t find your account — try wiping the device and re-onboarding', 'bad');
+        } else {
+          toast('Cashout failed: ' + (netErr.message || 'network error'), 'bad');
+        }
+        console.error('[cashout] redeem failed', netErr);
+        go.disabled = false;
+        go.textContent = 'Authenticate & cash out';
+        return;
+      }
       const okIds = new Set(r.accepted || []);
 
       // ALL tokens rejected as unknown means the backend restarted and

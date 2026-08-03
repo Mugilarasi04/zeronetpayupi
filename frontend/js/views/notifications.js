@@ -46,19 +46,23 @@ export async function renderNotifications(root, state, { navigate, refresh }) {
 
   await load();
 
-  // Live ticker so the "complaint unlocks in Xm" countdown updates without
-  // needing the user to hit Refresh. Cleans itself up when the view is
-  // replaced (the #list element is gone).
+  // Live poll — every 10 seconds re-fetch from server so a fresh mark-paid
+  // by the escrow operator shows up here as "✓ paid" without user tapping
+  // Refresh. Cleans itself up when the view is replaced.
   if (window.__znpNotifTimer) clearInterval(window.__znpNotifTimer);
-  window.__znpNotifTimer = setInterval(() => {
+  window.__znpNotifTimer = setInterval(async () => {
     if (!document.body.contains(list)) {
       clearInterval(window.__znpNotifTimer);
       window.__znpNotifTimer = null;
       return;
     }
-    // Cheap re-render from last fetched data — no API hit.
-    if (window.__znpNotifItems) renderList(window.__znpNotifItems);
-  }, 30_000);
+    // Re-fetch quietly (no spinner) and re-render.
+    try {
+      const r = await api.myCashouts(state.user.id);
+      window.__znpNotifItems = r.items || [];
+      renderList(window.__znpNotifItems);
+    } catch (_) { /* stay quiet on transient network blips */ }
+  }, 10_000);
 
   async function load() {
     list.innerHTML = '<div class="muted" style="text-align:center; padding: 20px 0;"><span class="spinner"></span> Loading…</div>';
@@ -107,9 +111,10 @@ export async function renderNotifications(root, state, { navigate, refresh }) {
         const actions = it.disbursed
           ? ''
           : `<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <button class="btn success btn-sm" data-received="${escapeHtml(it.id)}">✓ I received the money</button>
               ${wa
                 ? `<a class="btn btn-sm" style="background:#25D366; color:white; text-decoration:none;"
-                      href="${escapeHtml(whatsappLink(wa, it, state))}" target="_blank" rel="noopener">💬 Nudge escrow on WhatsApp</a>`
+                      href="${escapeHtml(whatsappLink(wa, it, state))}" target="_blank" rel="noopener">💬 Nudge escrow</a>`
                 : ''}
               ${it.complaintRaised
                 ? ''
@@ -156,6 +161,25 @@ export async function renderNotifications(root, state, { navigate, refresh }) {
           await load();
         } catch (e) {
           toast(e.message || 'Failed to raise complaint', 'bad');
+          b.disabled = false;
+        }
+      }),
+    );
+
+    // Self-attest "I received the money" — closes the loop when the
+    // operator forgets to mark-paid but the receiver saw the credit hit.
+    list.querySelectorAll('[data-received]').forEach((b) =>
+      b.addEventListener('click', async () => {
+        const id = b.dataset.received;
+        if (!confirm('Confirm that ₹' + (window.__znpNotifItems.find(x => x.id === id) || {}).amount + ' has landed in your bank account?')) return;
+        const ref = prompt('Optional: paste the bank/UPI reference from your SMS', '');
+        b.disabled = true;
+        try {
+          await api.confirmReceived(id, state.user.id, ref || null);
+          toast('Marked as received — thanks!', 'good');
+          await load();
+        } catch (e) {
+          toast(e.message || 'Could not mark as received', 'bad');
           b.disabled = false;
         }
       }),

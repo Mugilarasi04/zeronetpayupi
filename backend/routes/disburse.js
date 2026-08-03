@@ -119,6 +119,32 @@ router.get('/mine/:receiverId', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Receiver self-attests that the payout has arrived in their bank. This
+// lets the receiver close out the "pending" state independently of the
+// escrow operator, which is critical when the operator forgets to mark
+// paid but the receiver has already seen the credit in their UPI app.
+router.post('/:id/confirm-received', async (req, res, next) => {
+  try {
+    const { receiverId, ref } = req.body || {};
+    if (!receiverId) return res.status(400).json({ error: 'receiverId required' });
+    const row = await db
+      .prepare('SELECT * FROM settlements WHERE id = ?')
+      .get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'settlement not found' });
+    if (row.receiver_id !== receiverId) {
+      return res.status(403).json({ error: 'not your settlement' });
+    }
+    if (row.disbursed) return res.json({ ok: true, alreadyPaid: true });
+    const stamped = 'RECV-CONFIRM-' + Date.now().toString(36).toUpperCase();
+    await db.prepare(
+      `UPDATE settlements
+          SET disbursed = 1, disbursed_at = ?, disbursed_ref = ?
+          WHERE id = ?`,
+    ).run(Date.now(), ref || stamped, req.params.id);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 router.post('/:id/complaint', async (req, res, next) => {
   try {
     const note = ((req.body && req.body.note) || 'Payout not received').slice(0, 300);

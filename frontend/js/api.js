@@ -125,4 +125,6 @@ export const api = {
   unmarkDisbursed: (id) => call('POST', `/disburse/${id}/unmark`),
   myCashouts: (receiverId) => call('GET', `/disburse/mine/${receiverId}`),
   raiseComplaint: (id, note) => call('POST', `/disburse/${id}/complaint`, { note }),
+  confirmReceived: (id, receiverId, ref) =>
+    call('POST', `/disburse/${id}/confirm-received`, { receiverId, ref }),
 };
