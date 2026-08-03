@@ -109,7 +109,8 @@ export const api = {
     call('GET', '/auth/lookup?deviceId=' + encodeURIComponent(deviceId)),
   createLoadOrder: (userId, amount) =>
     call('POST', '/load/create', { userId, amount }),
-  confirmLoad: (orderId) => call('POST', '/load/confirm', { orderId }),
+  confirmLoad: (orderId, proofDataUrl) =>
+    call('POST', '/load/confirm', { orderId, proofDataUrl }),
   loadStatus: (orderId) => call('GET', '/load/status/' + orderId),
   redeem: (receiverId, tokens, senderDevice) =>
     call('POST', '/redeem', { receiverId, tokens, senderDevice }),

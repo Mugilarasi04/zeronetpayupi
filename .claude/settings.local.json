@@ -97,7 +97,9 @@
       "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w '  root HTTP %{http_code}\\\\n' https://zeronetpayofflineupi.pages.dev/)",
       "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w '  config HTTP %{http_code}\\\\n' https://zeronetpayofflineupi.pages.dev/config.js)",
       "Bash(/usr/bin/curl -sS -m 10 https://zeronetpayofflineupi.pages.dev/config.js)",
-      "Bash(/usr/bin/curl -sS -m 10 https://zeronetpayofflineupi.pages.dev/js/views/notifications.js)"
+      "Bash(/usr/bin/curl -sS -m 10 https://zeronetpayofflineupi.pages.dev/js/views/notifications.js)",
+      "Bash(/usr/bin/curl -sS -m 8 -o /dev/null -w \"vendor qrcode HTTP %{http_code}\\\\n\" https://zeronetpayofflineupi.pages.dev/vendor/qrcode-generator.js)",
+      "Bash(/usr/bin/curl -sS -m 8 -o /dev/null -w \"vendor jsQR HTTP %{http_code}\\\\n\" https://zeronetpayofflineupi.pages.dev/vendor/jsQR.js)"
     ]
   }
 }

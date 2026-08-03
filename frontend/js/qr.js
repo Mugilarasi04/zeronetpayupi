@@ -112,9 +112,31 @@ export function parseFrame(text) {
 
 // Render to a canvas element. Uses qrcode-generator's qrcode(typeNumber, ec)
 // global which auto-fits the lowest type for the given payload.
+// Wait up to `timeoutMs` for a global to appear on window. Prevents the
+// race where module-init code runs before deferred vendor scripts have
+// executed — common on slow first-loads.
+function waitForGlobal(name, timeoutMs = 3000) {
+  return new Promise((resolve, reject) => {
+    if (typeof window[name] !== 'undefined') return resolve();
+    const start = Date.now();
+    const t = setInterval(() => {
+      if (typeof window[name] !== 'undefined') {
+        clearInterval(t);
+        resolve();
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(t);
+        reject(new Error(`${name} did not load within ${timeoutMs}ms`));
+      }
+    }, 40);
+  });
+}
+
 export async function renderToCanvas(canvas, text) {
   // qrcode-generator exposes a global function `qrcode(typeNumber, ec)`.
-  if (typeof qrcode !== 'function') throw new Error('QR library not loaded yet');
+  if (typeof qrcode !== 'function') {
+    try { await waitForGlobal('qrcode'); }
+    catch (_) { throw new Error('QR library not loaded — hard-reload the page to refresh cache'); }
+  }
   // typeNumber 0 = auto-detect smallest fitting type
   const qr = qrcode(0, 'M');
   qr.addData(text);
@@ -148,10 +170,11 @@ export async function renderToCanvas(canvas, text) {
  */
 export async function startScanner(videoEl, canvasEl, onScan) {
   if (typeof jsQR !== 'function') {
-    throw new Error('QR scanner library not loaded yet');
+    try { await waitForGlobal('jsQR'); }
+    catch (_) { throw new Error('QR scanner not loaded — hard-reload the page to refresh cache'); }
   }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    throw new Error('camera not available');
+    throw new Error('Camera not available on this browser. On iPhone, open the URL in Safari (not inside WhatsApp/Instagram).');
   }
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { facingMode: 'environment' },

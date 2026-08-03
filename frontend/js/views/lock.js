@@ -36,7 +36,7 @@ export function renderLock(root, state, { onUnlock }) {
 
         <div id="pinForm" hidden class="lock-pin-form">
           <label id="pinLabel" for="pinInput">Enter your 4-6 digit PIN</label>
-          <input id="pinInput" type="password" inputmode="numeric" pattern="\\d*" maxlength="6" autocomplete="off" placeholder="••••" />
+          <input id="pinInput" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="••••" style="-webkit-text-security: disc; text-security: disc; letter-spacing: 8px;" />
           <div style="height: 10px"></div>
           <button id="pinSubmit" class="btn">Unlock</button>
           <button id="pinCancel" class="btn ghost btn-sm" style="margin-top: 6px;">Back</button>
@@ -99,9 +99,12 @@ export function renderLock(root, state, { onUnlock }) {
   });
 
   pinSubmit.addEventListener('click', async () => {
-    const v = (pinInput.value || '').trim();
+    // Strip any non-digit character (mobile keyboards sometimes inject
+    // whitespace or dashes without the user seeing).
+    const v = (pinInput.value || '').replace(/\D/g, '');
     if (!/^\d{4,6}$/.test(v)) {
       toast('PIN must be 4-6 digits', 'bad');
+      pinInput.value = '';
       pinInput.focus();
       return;
     }

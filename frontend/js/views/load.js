@@ -103,9 +103,23 @@ export function renderLoad(root, state, { refresh, navigate }) {
         </small>
 
         <div style="height: 16px"></div>
-        <button id="confirm" class="btn success">I've paid — issue tokens</button>
+        <div class="card tight" style="background: var(--card-hi); border-color: rgba(59,130,246,0.35);">
+          <p style="margin: 0 0 8px 0;"><strong>📸 Upload payment screenshot to mint tokens</strong></p>
+          <p class="muted" style="margin: 0 0 10px 0; font-size: 12px;">
+            Take a screenshot of your UPI app's "Payment Successful" page and upload it.
+            The escrow operator uses this as proof of payment before releasing your tokens.
+          </p>
+          <input id="proofFile" type="file" accept="image/*" style="width: 100%; padding: 8px; background: var(--bg-2); border: 1px dashed var(--border); border-radius: 8px; color: var(--text);" />
+          <div style="height: 6px"></div>
+          <div id="proofPreview" style="display:none; text-align:center;">
+            <img id="proofImg" alt="Payment proof preview" style="max-width: 100%; max-height: 180px; border-radius: 8px; margin-top: 8px;" />
+            <div class="muted" style="font-size: 11px; margin-top: 4px;" id="proofMeta"></div>
+          </div>
+        </div>
+        <div style="height: 12px"></div>
+        <button id="confirm" class="btn success" disabled>Upload screenshot first</button>
         <small class="muted" style="display:block; margin-top: 8px;">
-          Tap this only after the UPI app shows "Payment Successful".
+          Tokens are only issued after your screenshot is uploaded.
           In production this is automatic via a bank webhook.
         </small>
       </div>
@@ -133,12 +147,44 @@ export function renderLoad(root, state, { refresh, navigate }) {
       toast(ok ? 'Reference copied' : 'Copy failed', ok ? 'good' : 'bad');
     });
 
-    container.querySelector('#confirm').addEventListener('click', async () => {
-      const btn = container.querySelector('#confirm');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Verifying & minting…';
+    // --- Screenshot handling ---
+    let proofDataUrl = null;
+    const proofFile = container.querySelector('#proofFile');
+    const proofPreview = container.querySelector('#proofPreview');
+    const proofImg = container.querySelector('#proofImg');
+    const proofMeta = container.querySelector('#proofMeta');
+    const confirmBtn = container.querySelector('#confirm');
+
+    proofFile.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        toast('Please pick an image file', 'bad');
+        return;
+      }
       try {
-        const r = await api.confirmLoad(ord.orderId);
+        proofDataUrl = await shrinkImage(file, { maxDim: 1200, quality: 0.72 });
+        proofImg.src = proofDataUrl;
+        proofPreview.style.display = 'block';
+        const kb = Math.round((proofDataUrl.length * 3) / 4 / 1024);
+        proofMeta.textContent = `${file.name} · ~${kb} KB after resize`;
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Verify & mint tokens';
+      } catch (err) {
+        console.error(err);
+        toast('Could not read the image — try another file', 'bad');
+      }
+    });
+
+    confirmBtn.addEventListener('click', async () => {
+      if (!proofDataUrl) {
+        toast('Upload a payment screenshot first', 'bad');
+        return;
+      }
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = '<span class="spinner"></span> Verifying screenshot & minting…';
+      try {
+        const r = await api.confirmLoad(ord.orderId, proofDataUrl);
         await store.addTokens(r.tokens);
         await store.addLedger({
           id: uuid(),
@@ -151,14 +197,45 @@ export function renderLoad(root, state, { refresh, navigate }) {
         await renderDoneStep(doneContainer, ord, r);
         container.hidden = true;
         doneContainer.hidden = false;
-        toast('Tokens added to your wallet', 'good');
+        toast('Screenshot verified — tokens added to wallet', 'good');
         await refresh();
       } catch (e) {
         toast(e.code === 'offline' ? 'Need internet to mint tokens' : e.message, 'bad');
-        btn.disabled = false;
-        btn.textContent = "I've paid — issue tokens";
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Verify & mint tokens';
       }
     });
+  }
+
+  // Client-side image downsizer — keeps upload under the server's 400 KB
+  // limit no matter what phone camera the user is on.
+  async function shrinkImage(file, { maxDim = 1200, quality = 0.75 } = {}) {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(file);
+    });
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = dataUrl;
+    });
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    let out = canvas.toDataURL('image/jpeg', quality);
+    // If still too big, drop quality once more.
+    if (out.length > 350 * 1024) {
+      out = canvas.toDataURL('image/jpeg', Math.max(0.4, quality - 0.2));
+    }
+    return out;
   }
 
   async function renderDoneStep(container, ord, mintResp) {

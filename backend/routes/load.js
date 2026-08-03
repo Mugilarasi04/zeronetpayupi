@@ -6,6 +6,28 @@ const { readSetting } = require('./settings');
 
 const router = express.Router();
 
+// One-time migration to store the screenshot proof on the order row.
+(async () => {
+  try {
+    const info = await db.prepare('PRAGMA table_info(load_orders)').all();
+    const cols = info.map((r) => r.name);
+    if (!cols.includes('proof_data_url')) {
+      await db.exec('ALTER TABLE load_orders ADD COLUMN proof_data_url TEXT');
+    }
+    if (!cols.includes('proof_uploaded_at')) {
+      await db.exec('ALTER TABLE load_orders ADD COLUMN proof_uploaded_at INTEGER');
+    }
+  } catch (e) {
+    console.warn('[load] proof-column migration failed', e.message);
+  }
+})();
+
+const MAX_PROOF_BYTES = 400 * 1024; // 400 KB is plenty for a downsized screenshot.
+
+function looksLikeImageDataUrl(s) {
+  return typeof s === 'string' && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(s);
+}
+
 router.post('/create', async (req, res, next) => {
   try {
     const { userId, amount } = req.body || {};
@@ -70,8 +92,31 @@ router.post('/create', async (req, res, next) => {
 
 router.post('/confirm', async (req, res, next) => {
   try {
-    const { orderId } = req.body || {};
+    const { orderId, proofDataUrl } = req.body || {};
     if (!orderId) return res.status(400).json({ error: 'orderId required' });
+
+    // Proof-of-payment: user must upload a screenshot of their UPI success
+    // page. This isn't OCR-verified (a real deployment would call the bank
+    // webhook), but it (a) creates a paper trail for disputes and (b)
+    // discourages users from clicking "mint" without actually paying.
+    if (!proofDataUrl) {
+      return res.status(400).json({
+        error: 'proof_required',
+        message: 'Upload a screenshot of the UPI payment success page.',
+      });
+    }
+    if (!looksLikeImageDataUrl(proofDataUrl)) {
+      return res.status(400).json({
+        error: 'invalid_proof',
+        message: 'Screenshot must be a PNG or JPEG image.',
+      });
+    }
+    if (proofDataUrl.length > MAX_PROOF_BYTES) {
+      return res.status(413).json({
+        error: 'proof_too_large',
+        message: 'Screenshot is too large — please try a smaller image.',
+      });
+    }
 
     const order = await db.prepare('SELECT * FROM load_orders WHERE id = ?').get(orderId);
     if (!order) return res.status(404).json({ error: 'order not found' });
@@ -81,6 +126,12 @@ router.post('/confirm', async (req, res, next) => {
 
     const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id);
     if (!user) return res.status(404).json({ error: 'user not found' });
+
+    // Persist the screenshot BEFORE minting so we always have an audit trail
+    // even if token issuance fails partway through.
+    await db.prepare(
+      `UPDATE load_orders SET proof_data_url = ?, proof_uploaded_at = ? WHERE id = ?`,
+    ).run(proofDataUrl, Date.now(), orderId);
 
     const tokens = await escrow.creditEscrowAndIssueTokens({
       userId: order.user_id,
