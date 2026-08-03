@@ -132,19 +132,31 @@ export function renderHome(root, state, { navigate }) {
       banner.hidden = true;
       return;
     }
+    const complaintCount = d.items.filter((i) => i.complaintRaised && !i.disbursed).length;
+    const flagged = next.complaintRaised;
+    const bannerBorder = complaintCount > 0 || flagged
+      ? 'rgba(239,68,68,0.55)'
+      : 'rgba(251,191,36,0.4)';
+    const bannerHeader = flagged
+      ? '<strong style="color:#fca5a5;">⚠ COMPLAINT RAISED</strong>'
+      : '<strong>🔔 Payout queued</strong>';
     banner.hidden = false;
     banner.innerHTML = `
-      <div class="note" style="border-color: rgba(251,191,36,0.4);">
+      <div class="note" style="border-color: ${bannerBorder};">
         <div class="spaced">
           <div>
-            <strong>🔔 Payout queued</strong><br/>
+            ${bannerHeader}<br/>
             <span class="muted">Send <strong>${rupeesPlain(next.amount * 100)}</strong> from escrow to <strong>${escapeHtml(next.receiverUpi)}</strong></span>
+            ${flagged && next.complaintNote ? `
+              <div style="margin-top: 6px; padding: 6px 8px; background: rgba(239,68,68,0.12); border-radius: 6px; font-size: 12px; color:#fecaca;">
+                “${escapeHtml(next.complaintNote)}”
+              </div>` : ''}
           </div>
         </div>
         <div style="height: 8px"></div>
         <div class="row">
           <a class="btn btn-sm" href="${escapeHtml(next.deeplink)}">Pay now</a>
-          <button class="btn ghost btn-sm" data-go="disburse">View all (${d.pendingCount})</button>
+          <button class="btn ghost btn-sm" data-go="disburse">View all (${d.pendingCount}${complaintCount > 0 ? ` · ${complaintCount}⚠` : ''})</button>
         </div>
       </div>
     `;

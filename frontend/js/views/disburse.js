@@ -55,6 +55,7 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
       return;
     }
     const mobile = isMobile();
+    const complaintCount = data.items.filter((i) => i.complaintRaised && !i.disbursed).length;
     summary.innerHTML = `
       <div class="spaced">
         <div>
@@ -67,6 +68,12 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
           <div class="muted" style="font-size: 12px;">${data.pendingCount} payout${data.pendingCount === 1 ? '' : 's'}</div>
         </div>
       </div>
+      ${complaintCount > 0 ? `
+        <div class="divider"></div>
+        <div style="color:#fca5a5; font-weight:700;">
+          ⚠ ${complaintCount} complaint${complaintCount === 1 ? '' : 's'} — receivers waiting on payout
+        </div>
+      ` : ''}
     `;
 
     if (data.items.length === 0) {
@@ -78,13 +85,25 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
       .map((it) => {
         const when = new Date(it.createdAt).toLocaleString();
         const isPaid = it.disbursed;
+        const cardBorder = it.complaintRaised && !isPaid
+          ? 'border-color: rgba(239,68,68,0.5); box-shadow: 0 0 0 1px rgba(239,68,68,0.3);'
+          : '';
         return `
-          <div class="card tight" style="margin-bottom: 8px; ${isPaid ? 'opacity: 0.55;' : ''}">
+          <div class="card tight" style="margin-bottom: 8px; ${isPaid ? 'opacity: 0.55;' : ''} ${cardBorder}">
             <div class="spaced">
               <div>
                 <div style="font-weight: 700; font-size: 16px;">${rupeesPlain(it.amount * 100)} → ${escapeHtml(it.receiverUpi)}</div>
                 <div class="muted" style="font-size: 12px;">${it.tokenCount} token${it.tokenCount === 1 ? '' : 's'} · ${escapeHtml(it.id)} · ${when}</div>
                 ${isPaid ? `<div class="chip good" style="margin-top: 6px; display: inline-block;">paid · ${escapeHtml(it.disbursedRef || 'no ref')}</div>` : ''}
+                ${it.complaintRaised && !isPaid ? `
+                  <div style="margin-top: 8px; padding: 8px 10px; background: rgba(239,68,68,0.12); border-radius: 8px; border-left: 3px solid #ef4444;">
+                    <div style="color:#fca5a5; font-weight:700; font-size: 13px;">⚠ COMPLAINT RAISED</div>
+                    <div style="color:#fecaca; font-size: 12px; margin-top: 2px;">
+                      ${escapeHtml(it.complaintNote || 'Payout hasn\\'t arrived')}
+                      <br/><small style="opacity:0.75;">${it.complaintAt ? new Date(it.complaintAt).toLocaleString() : ''}</small>
+                    </div>
+                  </div>
+                ` : ''}
               </div>
             </div>
             ${isPaid
