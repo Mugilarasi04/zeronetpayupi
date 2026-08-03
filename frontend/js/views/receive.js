@@ -20,15 +20,25 @@ export function renderReceive(root, state, { refresh, trySyncPending }) {
     <section class="card" style="background: var(--card-hi);">
       <h3>Or paste transfer code</h3>
       <p class="muted" style="font-size: 13px;">
-        If the QR won't scan, ask the sender to tap <strong>Copy transfer code</strong>
-        and send it to you (WhatsApp / SMS / anything). Paste it below to import the tokens.
+        If the QR won't scan, ask the sender to tap <strong>📋 Copy transfer code</strong>
+        and share it via WhatsApp/SMS. Paste the <strong>ENTIRE code</strong> below —
+        it starts with <code>ZNP-</code> and is thousands of characters long.
       </p>
-      <textarea id="pasteCode" placeholder="ZNP-1234.eyJmcm9tIjp7...."
-        rows="4" style="width: 100%; padding: 10px; font-family: ui-monospace, monospace; font-size: 12px; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
-      <div style="height: 8px"></div>
-      <button id="importCode" class="btn">Import tokens</button>
+      <div class="note info" style="font-size: 12px; margin-bottom: 10px;">
+        ⚠️ Pasting just the 4-digit check code (like <code>7652</code>) won't work.
+        You need the full string like <code>ZNP-7652.eyJmcm9tI...</code>
+      </div>
+      <textarea id="pasteCode" placeholder="ZNP-1234.eyJmcm9tIjp7InVwaUlkIjoibXVnaWxhcmFzaW1zQG9raWNpY2kiLCJkZXZpY2VJZC..."
+        rows="4" autocomplete="off" autocorrect="off" spellcheck="false"
+        style="width: 100%; padding: 10px; font-family: ui-monospace, monospace; font-size: 12px; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
+      <div class="muted" id="pasteHint" style="font-size: 11px; margin-top: 4px; min-height: 16px;"></div>
+      <div style="height: 4px"></div>
+      <div class="row">
+        <button id="pasteFromClipboard" class="btn ghost btn-sm">📥 Paste from clipboard</button>
+        <button id="importCode" class="btn">Import tokens</button>
+      </div>
       <small class="muted" style="display:block; margin-top: 6px;">
-        Verify the 4-digit code shown on the sender's screen matches the one shown after paste.
+        Check code shown after paste must match the code on the sender's screen.
       </small>
     </section>
 
@@ -162,6 +172,46 @@ export function renderReceive(root, state, { refresh, trySyncPending }) {
   // Text-code paste-import fallback.
   const pasteBox = root.querySelector('#pasteCode');
   const importBtn = root.querySelector('#importCode');
+  const pasteHint = root.querySelector('#pasteHint');
+  const pasteFromClipboard = root.querySelector('#pasteFromClipboard');
+
+  // Live diagnostics as user types/pastes.
+  pasteBox.addEventListener('input', () => {
+    const v = pasteBox.value.trim();
+    if (!v) { pasteHint.textContent = ''; return; }
+    if (/^\d{4}$/.test(v)) {
+      pasteHint.innerHTML = '⚠️ That\'s just the check code. Paste the FULL code starting with ZNP-';
+      pasteHint.style.color = '#fca5a5';
+      return;
+    }
+    if (!v.startsWith('ZNP-')) {
+      pasteHint.textContent = '⚠️ Code must start with "ZNP-"';
+      pasteHint.style.color = '#fca5a5';
+      return;
+    }
+    const r = decodePayloadFromText(v);
+    if (r.ok) {
+      const total = r.payload.tokens.reduce((s, t) => s + t.value_paise, 0);
+      pasteHint.innerHTML = `✓ Valid — check code <strong>${r.code}</strong>, ${r.payload.tokens.length} tokens = ₹${(total/100).toFixed(2)}`;
+      pasteHint.style.color = '#86efac';
+    } else {
+      pasteHint.textContent = '⚠️ ' + r.error;
+      pasteHint.style.color = '#fca5a5';
+    }
+  });
+
+  pasteFromClipboard.addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) { toast('Clipboard is empty', 'bad'); return; }
+      pasteBox.value = text;
+      pasteBox.dispatchEvent(new Event('input'));
+      toast('Pasted from clipboard', 'good');
+    } catch (e) {
+      toast('Browser blocked clipboard read — long-press the box and pick Paste', 'bad');
+    }
+  });
+
   importBtn.addEventListener('click', async () => {
     const text = (pasteBox.value || '').trim();
     if (!text) {

@@ -82,12 +82,40 @@ export function encodePayloadAsText(payload) {
 }
 
 export function decodePayloadFromText(text) {
-  const s = (text || '').trim();
-  const m = s.match(/^ZNP-(\d{4})\.(.+)$/s);
-  if (!m) return { ok: false, error: 'Not a ZeroNetPay transfer code' };
+  // Normalise input: strip whitespace/newlines that get inserted when the
+  // user pastes from WhatsApp/SMS, and undo URL-encoding in case they
+  // pasted a wa.me link body.
+  let s = (text || '').trim().replace(/\s+/g, '');
+  try { s = decodeURIComponent(s); } catch (_) { /* keep as-is */ }
+
+  // Helpful diagnostics for the common paste mistakes.
+  if (!s) return { ok: false, error: 'Paste the full transfer code first' };
+  if (/^\d{4}$/.test(s)) {
+    return {
+      ok: false,
+      error: 'That\'s just the 4-digit check code. Paste the FULL transfer code starting with "ZNP-".',
+    };
+  }
+  if (!s.startsWith('ZNP-')) {
+    return {
+      ok: false,
+      error: 'Transfer code must start with "ZNP-". Ask the sender to tap "Copy transfer code" and re-share.',
+    };
+  }
+
+  const m = s.match(/^ZNP-(\d{4})\.([\s\S]+)$/);
+  if (!m) {
+    return {
+      ok: false,
+      error: 'Transfer code looks incomplete — make sure you copied all of it (usually thousands of characters).',
+    };
+  }
   const [, code, b64] = m;
   if (codeFromString(b64) !== code) {
-    return { ok: false, error: 'Check code mismatch — the code may have been copied incompletely' };
+    return {
+      ok: false,
+      error: `Check code mismatch (${code}) — the code was likely truncated. Re-copy and try again.`,
+    };
   }
   try {
     const payload = JSON.parse(b64DecodeUtf8(b64));
