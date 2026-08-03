@@ -1,15 +1,29 @@
 import { api } from '../api.js';
 import { rupeesPlain, escapeHtml, toast, formatRelative } from '../util.js';
 
+// Complaints only unlock after this delay to prevent premature disputes.
+// One hour matches the demo scenario the user described.
+const COMPLAINT_DELAY_MS = 60 * 60 * 1000;
+
 function whatsappLink(phone, item, state) {
   const rawMsg =
-    `Hi, I'm still waiting for my ZeroNetPay payout.\n\n` +
+    `Hi, my ZeroNetPay payout is pending.\n\n` +
     `Amount: ₹${item.amount}\n` +
-    `Pay to UPI: ${(state.user && state.user.upiId) || ''}\n` +
+    `Pay to my UPI: ${(state.user && state.user.upiId) || ''}\n` +
     `Reference: ${item.id}\n\n` +
-    `Requested ${new Date(item.createdAt).toLocaleString()}.`;
+    `Requested ${new Date(item.createdAt).toLocaleString()}.\n` +
+    `Please release the payout, thanks!`;
   const digits = String(phone).replace(/[^0-9]/g, '');
   return `https://wa.me/${digits}?text=${encodeURIComponent(rawMsg)}`;
+}
+
+function fmtCountdown(ms) {
+  if (ms <= 0) return '';
+  const mins = Math.ceil(ms / 60000);
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h ${m}m`;
 }
 
 export async function renderNotifications(root, state, { navigate, refresh }) {
@@ -32,11 +46,26 @@ export async function renderNotifications(root, state, { navigate, refresh }) {
 
   await load();
 
+  // Live ticker so the "complaint unlocks in Xm" countdown updates without
+  // needing the user to hit Refresh. Cleans itself up when the view is
+  // replaced (the #list element is gone).
+  if (window.__znpNotifTimer) clearInterval(window.__znpNotifTimer);
+  window.__znpNotifTimer = setInterval(() => {
+    if (!document.body.contains(list)) {
+      clearInterval(window.__znpNotifTimer);
+      window.__znpNotifTimer = null;
+      return;
+    }
+    // Cheap re-render from last fetched data — no API hit.
+    if (window.__znpNotifItems) renderList(window.__znpNotifItems);
+  }, 30_000);
+
   async function load() {
     list.innerHTML = '<div class="muted" style="text-align:center; padding: 20px 0;"><span class="spinner"></span> Loading…</div>';
     try {
       const r = await api.myCashouts(state.user.id);
-      renderList(r.items || []);
+      window.__znpNotifItems = r.items || [];
+      renderList(window.__znpNotifItems);
     } catch (e) {
       list.innerHTML = `<div class="note info">Couldn't load cashouts: ${escapeHtml(e.message || 'offline')}</div>`;
     }
@@ -71,16 +100,25 @@ export async function renderNotifications(root, state, { navigate, refresh }) {
              </div>`
           : '';
 
+        const elapsedMs = Date.now() - it.createdAt;
+        const complaintUnlockIn = COMPLAINT_DELAY_MS - elapsedMs;
+        const complaintUnlocked = complaintUnlockIn <= 0;
+
         const actions = it.disbursed
           ? ''
-          : `<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+          : `<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
               ${wa
                 ? `<a class="btn btn-sm" style="background:#25D366; color:white; text-decoration:none;"
-                      href="${escapeHtml(whatsappLink(wa, it, state))}" target="_blank" rel="noopener">💬 Ping on WhatsApp</a>`
+                      href="${escapeHtml(whatsappLink(wa, it, state))}" target="_blank" rel="noopener">💬 Nudge escrow on WhatsApp</a>`
                 : ''}
-              ${!it.complaintRaised
-                ? `<button class="btn ghost btn-sm" data-complain="${escapeHtml(it.id)}">Raise complaint</button>`
-                : ''}
+              ${it.complaintRaised
+                ? ''
+                : complaintUnlocked
+                  ? `<button class="btn ghost btn-sm" data-complain="${escapeHtml(it.id)}">Raise complaint</button>`
+                  : `<span class="muted" style="font-size: 12px;">
+                       Complaint unlocks in <strong>${fmtCountdown(complaintUnlockIn)}</strong>
+                     </span>`
+              }
              </div>`;
 
         return `

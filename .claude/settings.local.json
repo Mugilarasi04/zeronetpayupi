@@ -91,7 +91,9 @@
       "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w \"pages HTTP %{http_code}\\\\n\" https://zeronetpayoffline.pages.dev/)",
       "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w \"config HTTP %{http_code}\\\\n\" https://zeronetpayoffline.pages.dev/config.js)",
       "Bash(/usr/bin/curl -sS -m 10 https://zeronetpayoffline.pages.dev/config.js)",
-      "Bash(/usr/bin/curl -sS -m 10 -H \"Origin: https://zeronetpayoffline.pages.dev\" -o /dev/null -w \"CORS backend HTTP %{http_code}\\\\n\" https://zeronetpayupi.onrender.com/api/health)"
+      "Bash(/usr/bin/curl -sS -m 10 -H \"Origin: https://zeronetpayoffline.pages.dev\" -o /dev/null -w \"CORS backend HTTP %{http_code}\\\\n\" https://zeronetpayupi.onrender.com/api/health)",
+      "Bash(/usr/bin/curl -sS -m 10 \"https://zeronetpayoffline.pages.dev/js/views/cashout.js\")",
+      "Bash(/usr/bin/curl -sS -m 10 \"https://zeronetpayupi.onrender.com/api/settings\")"
     ]
   }
 }
