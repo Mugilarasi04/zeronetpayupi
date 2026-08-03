@@ -99,7 +99,7 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
                   <div style="margin-top: 8px; padding: 8px 10px; background: rgba(239,68,68,0.12); border-radius: 8px; border-left: 3px solid #ef4444;">
                     <div style="color:#fca5a5; font-weight:700; font-size: 13px;">⚠ COMPLAINT RAISED</div>
                     <div style="color:#fecaca; font-size: 12px; margin-top: 2px;">
-                      ${escapeHtml(it.complaintNote || 'Payout hasn\\'t arrived')}
+                      ${escapeHtml(it.complaintNote || "Payout hasn't arrived")}
                       <br/><small style="opacity:0.75;">${it.complaintAt ? new Date(it.complaintAt).toLocaleString() : ''}</small>
                     </div>
                   </div>
