@@ -66,6 +66,18 @@ export function isValidUpi(s) {
   return typeof s === 'string' && UPI_REGEX.test(s.trim());
 }
 
+/**
+ * Build a WhatsApp deeplink for a phone number (with country code) + prefilled
+ * message text. Returns null if the phone is missing / obviously invalid so
+ * callers can hide the button.
+ */
+export function whatsappLink(phone, message) {
+  if (!phone) return null;
+  const digits = String(phone).replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 15) return null;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message || '')}`;
+}
+
 export function escapeHtml(s) {
   return String(s)
     .replace(/&/g, '&amp;')

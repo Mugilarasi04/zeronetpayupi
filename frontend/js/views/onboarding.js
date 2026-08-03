@@ -12,34 +12,50 @@ export function renderOnboarding(root, state, onUser) {
 
       <div class="card">
         <label for="upi">Your UPI ID</label>
-        <input id="upi" type="text" placeholder="ravi@okicici" autocomplete="off" inputmode="email" />
-        <small class="muted">We use this to credit your bank when offline tokens settle.</small>
+        <input id="upi" type="text" placeholder="ravi@okicici" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" />
+        <small class="muted">We credit your bank here when your offline tokens settle.</small>
+
+        <div style="height: 12px"></div>
+        <label for="phone">Phone number (with country code)</label>
+        <input id="phone" type="tel" placeholder="+91 98765 43210" autocomplete="tel" inputmode="tel" />
+        <small class="muted">
+          Used so the escrow operator can confirm payouts to you via WhatsApp,
+          and so you can raise a complaint if a payout doesn't arrive.
+        </small>
+
         <div style="height: 14px"></div>
         <button id="go" class="btn">Continue</button>
-        <small class="muted" style="display:block; margin-top: 10px;">Your phone is identified by a private device key — no SMS, no OTP.</small>
-      </div>
-
-      <div class="note info">
-        Demo build: payments use a mock UPI flow so you can run the full
-        load → offline pay → settle loop without a bank gateway.
+        <small class="muted" style="display:block; margin-top: 10px;">
+          This device is identified by a private key — no OTP.
+        </small>
       </div>
     </section>
   `;
-  const input = root.querySelector('#upi');
+  const upiInput = root.querySelector('#upi');
+  const phoneInput = root.querySelector('#phone');
   const btn = root.querySelector('#go');
-  input.focus();
-  btn.addEventListener('click', async () => {
-    const upiId = (input.value || '').trim();
+  upiInput.focus();
+
+  async function submit() {
+    const upiId = (upiInput.value || '').trim();
+    const phone = (phoneInput.value || '').trim();
     if (!isValidUpi(upiId)) {
       toast('Enter a valid UPI ID like ravi@okicici', 'bad');
-      input.focus();
+      upiInput.focus();
+      return;
+    }
+    // Local-side sanity check on phone. Backend does the strict normalisation.
+    const digits = phone.replace(/\D/g, '');
+    if (!digits || digits.length < 10 || digits.length > 15) {
+      toast('Enter a valid phone number (10-15 digits)', 'bad');
+      phoneInput.focus();
       return;
     }
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Linking…';
     try {
       const deviceId = deviceFingerprint();
-      const r = await api.register(upiId, deviceId);
+      const r = await api.register(upiId, deviceId, phone);
       onUser(r.user);
       toast('Linked ' + r.user.upiId, 'good');
     } catch (e) {
@@ -47,8 +63,12 @@ export function renderOnboarding(root, state, onUser) {
       btn.disabled = false;
       btn.textContent = 'Continue';
     }
-  });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') btn.click();
-  });
+  }
+
+  btn.addEventListener('click', submit);
+  for (const input of [upiInput, phoneInput]) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit();
+    });
+  }
 }

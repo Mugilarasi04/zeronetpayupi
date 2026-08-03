@@ -226,6 +226,7 @@ function renderTab(name) {
       return renderDisburse(root, state, { navigate, refresh });
     case 'cashout':
       return renderCashout(root, state, { navigate, refresh });
+    case 'mycashouts':
     case 'notifications':
       return renderNotifications(root, state, { navigate, refresh });
     default:

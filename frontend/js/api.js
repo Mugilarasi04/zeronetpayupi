@@ -103,8 +103,8 @@ async function call(method, path, body) {
 }
 
 export const api = {
-  register: (upiId, deviceId) =>
-    call('POST', '/auth/register', { upiId, deviceId }),
+  register: (upiId, deviceId, phone) =>
+    call('POST', '/auth/register', { upiId, deviceId, phone }),
   lookup: (deviceId) =>
     call('GET', '/auth/lookup?deviceId=' + encodeURIComponent(deviceId)),
   createLoadOrder: (userId, amount) =>

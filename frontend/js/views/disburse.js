@@ -1,5 +1,26 @@
 import { api } from '../api.js';
-import { rupeesPlain, escapeHtml, toast, copyText, isMobile } from '../util.js';
+import { rupeesPlain, escapeHtml, toast, copyText, isMobile, whatsappLink } from '../util.js';
+
+// Message the escrow operator sends after paying. Keeps the tone neutral and
+// includes the reference so the receiver can match it against their bank SMS.
+function paidMessage(item) {
+  return (
+    `Hi! Your ZeroNetPay cashout has been paid.\n\n` +
+    `Amount: ₹${item.amount}\n` +
+    `To UPI: ${item.receiverUpi}\n` +
+    `Reference: ${item.id}\n\n` +
+    `Check your bank SMS to confirm. Reply here if anything looks off.`
+  );
+}
+function nudgeMessage(item) {
+  return (
+    `Hi! I saw your ZeroNetPay cashout request.\n\n` +
+    `Amount: ₹${item.amount}\n` +
+    `To UPI: ${item.receiverUpi}\n` +
+    `Reference: ${item.id}\n\n` +
+    `Processing your payout now.`
+  );
+}
 
 export async function renderDisburse(root, state, { navigate, refresh }) {
   root.innerHTML = `
@@ -67,7 +88,11 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
               </div>
             </div>
             ${isPaid
-              ? `<div style="margin-top: 8px;">
+              ? `<div style="margin-top: 8px; display:flex; gap: 8px; flex-wrap: wrap;">
+                   ${whatsappLink(it.receiverPhone, paidMessage(it))
+                     ? `<a class="btn ghost btn-sm" style="color:#25D366;" target="_blank" rel="noopener"
+                          href="${escapeHtml(whatsappLink(it.receiverPhone, paidMessage(it)))}">💬 Notify receiver</a>`
+                     : ''}
                    <button class="btn ghost btn-sm" data-unmark="${escapeHtml(it.id)}">Unmark</button>
                  </div>`
               : `<div style="margin-top: 10px; display:flex; gap: 8px; flex-wrap: wrap;">
@@ -77,6 +102,10 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
                    }
                    <button class="btn ghost btn-sm" data-copy-upi="${escapeHtml(it.receiverUpi)}">Copy UPI</button>
                    <button class="btn ghost btn-sm" data-copy-amt="${it.amount.toFixed(2)}">Copy amount</button>
+                   ${whatsappLink(it.receiverPhone, nudgeMessage(it))
+                     ? `<a class="btn ghost btn-sm" style="color:#25D366;" target="_blank" rel="noopener"
+                          href="${escapeHtml(whatsappLink(it.receiverPhone, nudgeMessage(it)))}">💬 Nudge receiver</a>`
+                     : ''}
                    <button class="btn success btn-sm" data-mark="${escapeHtml(it.id)}">Mark as paid</button>
                  </div>`
             }
@@ -110,7 +139,26 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
         b.disabled = true;
         try {
           await api.markDisbursed(id, ref || null);
-          toast('Recorded as paid', 'good');
+          // Auto-open WhatsApp so the receiver hears from the escrow within
+          // seconds of the mark-paid tap. If the receiver's phone is missing
+          // we just skip and fall back to the toast.
+          const item = data.items.find((x) => x.id === id);
+          if (item) {
+            const wa = whatsappLink(item.receiverPhone, paidMessage({ ...item, disbursedRef: ref || null }));
+            if (wa) {
+              const win = window.open(wa, '_blank');
+              if (!win) {
+                // Popup blocker fired — surface the link explicitly.
+                toast('Recorded — tap "Notify receiver" below to send WhatsApp', 'good');
+              } else {
+                toast('Recorded — WhatsApp opened to notify receiver', 'good');
+              }
+            } else {
+              toast('Recorded as paid (receiver has no phone on file)', 'good');
+            }
+          } else {
+            toast('Recorded as paid', 'good');
+          }
           await reload();
         } catch (e) {
           toast(e.message, 'bad');

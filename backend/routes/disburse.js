@@ -12,7 +12,8 @@ router.get('/pending', async (req, res, next) => {
         `SELECT s.id, s.amount_paise, s.token_count, s.created_at,
                 s.disbursed, s.disbursed_at, s.disbursed_ref,
                 s.complaint_raised, s.complaint_at, s.complaint_note,
-                u.upi_id AS receiver_upi, u.id AS receiver_id
+                u.upi_id AS receiver_upi, u.id AS receiver_id,
+                u.phone AS receiver_phone
            FROM settlements s
            JOIN users u ON u.id = s.receiver_id
            ORDER BY s.disbursed ASC, s.complaint_raised DESC, s.created_at DESC
@@ -36,6 +37,7 @@ router.get('/pending', async (req, res, next) => {
         tokenCount: r.token_count,
         receiverUpi: r.receiver_upi,
         receiverId: r.receiver_id,
+        receiverPhone: r.receiver_phone || null,
         createdAt: r.created_at,
         disbursed: !!r.disbursed,
         disbursedAt: r.disbursed_at,

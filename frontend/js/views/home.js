@@ -70,6 +70,17 @@ export function renderHome(root, state, { navigate }) {
     <h2>Recent activity</h2>
     <div id="recent" class="list"></div>
 
+    <h2>Your payouts</h2>
+    <div class="card tight">
+      <div class="spaced">
+        <div>
+          <div style="font-weight: 700;">My cashouts</div>
+          <small class="muted" id="myCashoutsHint">Track payouts owed to you and raise complaints if needed.</small>
+        </div>
+        <button class="btn btn-sm" data-go="mycashouts">Open</button>
+      </div>
+    </div>
+
     <h2>Escrow operator</h2>
     <div class="card tight">
       <div class="spaced">
