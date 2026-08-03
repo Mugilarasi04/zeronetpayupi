@@ -13,6 +13,7 @@ async function main() {
   const redeemRoutes = require('./routes/redeem');
   const systemRoutes = require('./routes/system');
   const disburseRoutes = require('./routes/disburse');
+  const pairRoutes = require('./routes/pair');
   const { router: settingsRoutes, seed: seedSettings } = require('./routes/settings');
 
   await seedSettings();
@@ -26,6 +27,7 @@ async function main() {
   app.use('/api/load', loadRoutes);
   app.use('/api/settings', settingsRoutes);
   app.use('/api/disburse', disburseRoutes);
+  app.use('/api/pair', pairRoutes);
   app.use('/api', redeemRoutes);
   app.use('/api', systemRoutes);
 

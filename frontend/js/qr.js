@@ -10,10 +10,11 @@
 
 const FRAME_VERSION = 1;
 const FRAME_KIND = 'znp.tx';
-// Keep each frame small enough that the QR has chunky, easy-to-read modules.
-// 350 bytes ≈ QR version ~13 with EC 'M' — easily decoded by a phone camera
-// even when the receiver is moving slightly.
-const MAX_BYTES_PER_FRAME = 350;
+// Bumped to fit a small (₹1-15) payment in ONE QR frame — chasing frames
+// is the #1 usability problem. QR version 25 at EC 'L' holds ~1600 bytes
+// which is plenty for 10 tokens with signatures. If a payment is larger
+// (unusual for the demo), we fall back to multi-frame.
+const MAX_BYTES_PER_FRAME = 1500;
 
 export function chunkPayload(payload) {
   const json = JSON.stringify(payload);
@@ -166,15 +167,20 @@ export async function renderToCanvas(canvas, text) {
     catch (_) { throw new Error('QR library not loaded — hard-reload the page to refresh cache'); }
   }
   // typeNumber 0 = auto-detect smallest fitting type
-  const qr = qrcode(0, 'M');
+  // 'L' = 7% error correction — allows the highest data capacity per QR,
+  // which is what lets us fit a whole payment in ONE frame.
+  const qr = qrcode(0, 'L');
   qr.addData(text);
   qr.make();
 
   const moduleCount = qr.getModuleCount();
-  // Bigger modules → easier camera lock-on. 10px per module makes the QR
-  // visibly chunky and decodes reliably even from a foot away.
-  const cellSize = 10;
-  const margin = cellSize * 3; // generous quiet zone for camera tolerance
+  // Auto-scale module size so the whole QR is ~360px wide regardless of
+  // how many modules the version needs. Small denominations get big
+  // chunky modules; larger payments get smaller modules but still fit
+  // in a single readable QR.
+  const targetPx = 360;
+  const cellSize = Math.max(3, Math.floor(targetPx / moduleCount));
+  const margin = cellSize * 4; // generous quiet zone for camera tolerance
   const size = moduleCount * cellSize + margin * 2;
 
   canvas.width = size;

@@ -2,6 +2,7 @@ import { rupeesPlain, toast, uuid, copyText, escapeHtml } from '../util.js';
 import { store } from '../store.js';
 import { chunkPayload, renderToCanvas, encodePayloadAsText } from '../qr.js';
 import { authenticate as bioAuth } from '../biometric.js';
+import { api } from '../api.js';
 
 export function renderPay(root, state, { refresh, navigate }) {
   const total = state.tokens.reduce((s, t) => s + t.value_paise, 0);
@@ -37,20 +38,31 @@ export function renderPay(root, state, { refresh, navigate }) {
 
       <div class="divider" style="margin: 14px 0;"></div>
 
-      <div class="card tight" style="background: var(--card-hi);">
-        <p style="margin: 0 0 6px 0;"><strong>Or share as text (if QR won't scan)</strong></p>
+      <div class="card tight" style="background: var(--card-hi); border-color: rgba(59,130,246,0.4);">
+        <p style="margin: 0 0 8px 0;"><strong>🔢 Pairing code (easiest fallback)</strong></p>
         <p class="muted" style="margin: 0 0 8px 0; font-size: 12px;">
-          Check code:
-          <span id="checkCode" style="font-weight:800; font-size: 22px; letter-spacing: 4px; color:#86efac;">----</span><br/>
-          Sender & receiver see the same 4-digit code — that's how you verify.
+          Tell the receiver these <strong>6 digits</strong>. They enter them
+          in the Receive tab and get paid instantly. Code expires in 5 min.
         </p>
-        <button class="btn" id="copyCode">📋 Copy transfer code</button>
-        <button class="btn ghost btn-sm" id="shareCode" style="margin-top: 6px;">💬 Share via WhatsApp / SMS</button>
-        <small class="muted" style="display:block; margin-top: 8px;">
-          Receiver: paste the copied code in the <strong>Receive</strong> tab's
-          "Or paste transfer code" box.
-        </small>
+        <div id="pairCodeBox" style="text-align:center; padding: 14px 0;">
+          <div id="pairCode" style="font-weight:900; font-size: 36px; letter-spacing: 10px; color:#86efac; font-family: ui-monospace, monospace;">— — — — — —</div>
+          <small class="muted" id="pairCodeStatus" style="font-size: 11px;">generating…</small>
+        </div>
+        <button class="btn ghost btn-sm" id="shareCode" style="width:100%;">💬 Share code via WhatsApp / SMS</button>
       </div>
+
+      <div class="divider" style="margin: 14px 0;"></div>
+
+      <details style="font-size: 13px;">
+        <summary class="muted" style="cursor: pointer;">Advanced: full text transfer code</summary>
+        <div style="margin-top: 8px;">
+          <p class="muted" style="font-size: 11px; margin: 0 0 6px 0;">
+            Check code:
+            <span id="checkCode" style="font-weight:800; font-size: 18px; letter-spacing: 4px; color:#86efac;">----</span>
+          </p>
+          <button class="btn ghost btn-sm" id="copyCode">📋 Copy full transfer code</button>
+        </div>
+      </details>
 
       <div style="height: 12px"></div>
       <div class="row">
@@ -163,24 +175,40 @@ export function renderPay(root, state, { refresh, navigate }) {
         toast(ok ? `Copied — code ${encoded.code}` : 'Copy failed', ok ? 'good' : 'bad');
       });
     }
+
+    // 6-digit pairing code — post payload to the rendezvous service so
+    // the receiver only needs to type 6 digits. Requires internet on the
+    // sender side (which they had 10 seconds ago when they authenticated
+    // — this happens as a background call).
+    const pairCodeEl = root.querySelector('#pairCode');
+    const pairStatusEl = root.querySelector('#pairCodeStatus');
     const shareBtn = root.querySelector('#shareCode');
+    let pairCode = null;
+    (async () => {
+      try {
+        const r = await api.createPairCode(payload);
+        pairCode = r.code;
+        pairCodeEl.textContent = pairCode.split('').join(' ');
+        pairStatusEl.textContent = `expires in 5 min — receiver types this in the Receive tab`;
+      } catch (e) {
+        pairCodeEl.textContent = '(unavailable)';
+        pairStatusEl.textContent = 'Pair-code service offline — use the QR or full text code below';
+        pairStatusEl.style.color = '#fca5a5';
+      }
+    })();
+
     if (shareBtn) {
       shareBtn.addEventListener('click', async () => {
-        const msg =
-          `ZeroNetPay transfer — code ${encoded.code}%0A%0A` +
-          `Paste this into the Receive tab:%0A%0A` +
-          encodeURIComponent(encoded.text);
-        // Try native share first, fall back to WhatsApp deeplink.
+        const codeMsg = pairCode
+          ? `ZeroNetPay pair code: ${pairCode}\n\nEnter this in your Receive tab to import ₹${value}.\n(Valid 5 min.)`
+          : `ZeroNetPay transfer — code ${encoded.code}\n\nPaste the full code in Receive tab:\n\n${encoded.text}`;
         if (navigator.share) {
           try {
-            await navigator.share({
-              title: `ZeroNetPay transfer ${encoded.code}`,
-              text: `Paste this in Receive tab:\n\n${encoded.text}`,
-            });
+            await navigator.share({ title: 'ZeroNetPay transfer', text: codeMsg });
             return;
-          } catch (_) { /* user cancelled or unsupported — fall through */ }
+          } catch (_) { /* fall through */ }
         }
-        window.open(`https://wa.me/?text=${msg}`, '_blank');
+        window.open(`https://wa.me/?text=${encodeURIComponent(codeMsg)}`, '_blank');
       });
     }
 

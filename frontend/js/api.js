@@ -127,4 +127,7 @@ export const api = {
   raiseComplaint: (id, note) => call('POST', `/disburse/${id}/complaint`, { note }),
   confirmReceived: (id, receiverId, ref) =>
     call('POST', `/disburse/${id}/confirm-received`, { receiverId, ref }),
+  createPairCode: (payload) => call('POST', '/pair/create', { payload }),
+  fetchPairCode: (code) => call('GET', `/pair/${code}`),
+  consumePairCode: (code) => call('DELETE', `/pair/${code}`),
 };

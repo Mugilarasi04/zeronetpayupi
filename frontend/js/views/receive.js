@@ -1,6 +1,7 @@
 import { rupeesPlain, toast, uuid, isOnline } from '../util.js';
 import { store } from '../store.js';
 import { startScanner, parseFrame, tryReassemble, decodePayloadFromText } from '../qr.js';
+import { api } from '../api.js';
 
 export function renderReceive(root, state, { refresh, trySyncPending }) {
   root.innerHTML = `
@@ -17,29 +18,35 @@ export function renderReceive(root, state, { refresh, trySyncPending }) {
       <button id="stop" class="btn ghost">Stop scanner</button>
     </section>
 
-    <section class="card" style="background: var(--card-hi);">
-      <h3>Or paste transfer code</h3>
+    <section class="card" style="background: var(--card-hi); border-color: rgba(59,130,246,0.4);">
+      <h3>Or enter 6-digit pairing code</h3>
       <p class="muted" style="font-size: 13px;">
-        If the QR won't scan, ask the sender to tap <strong>📋 Copy transfer code</strong>
-        and share it via WhatsApp/SMS. Paste the <strong>ENTIRE code</strong> below —
-        it starts with <code>ZNP-</code> and is thousands of characters long.
+        The easiest way if the QR won't scan. Ask the sender for their
+        <strong>6-digit pairing code</strong> (shown on their Pay screen)
+        and type it below.
       </p>
-      <div class="note info" style="font-size: 12px; margin-bottom: 10px;">
-        ⚠️ Pasting just the 4-digit check code (like <code>7652</code>) won't work.
-        You need the full string like <code>ZNP-7652.eyJmcm9tI...</code>
-      </div>
-      <textarea id="pasteCode" placeholder="ZNP-1234.eyJmcm9tIjp7InVwaUlkIjoibXVnaWxhcmFzaW1zQG9raWNpY2kiLCJkZXZpY2VJZC..."
-        rows="4" autocomplete="off" autocorrect="off" spellcheck="false"
-        style="width: 100%; padding: 10px; font-family: ui-monospace, monospace; font-size: 12px; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
-      <div class="muted" id="pasteHint" style="font-size: 11px; margin-top: 4px; min-height: 16px;"></div>
-      <div style="height: 4px"></div>
-      <div class="row">
-        <button id="pasteFromClipboard" class="btn ghost btn-sm">📥 Paste from clipboard</button>
-        <button id="importCode" class="btn">Import tokens</button>
-      </div>
-      <small class="muted" style="display:block; margin-top: 6px;">
-        Check code shown after paste must match the code on the sender's screen.
+      <input id="pairInput" type="tel" inputmode="numeric" pattern="[0-9]*"
+        maxlength="6" autocomplete="off" placeholder="000000"
+        style="width: 100%; padding: 16px; text-align: center; font-family: ui-monospace, monospace; font-size: 32px; letter-spacing: 10px; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px;" />
+      <div style="height: 10px"></div>
+      <button id="importPair" class="btn">Import ₹ from pair code</button>
+      <small class="muted" style="display:block; margin-top: 8px;">
+        Requires internet on your side. Code expires 5 min after sender generates it.
       </small>
+
+      <details style="margin-top: 14px; font-size: 12px;">
+        <summary class="muted" style="cursor: pointer;">Advanced: paste full text code (thousands of chars)</summary>
+        <div style="margin-top: 8px;">
+          <textarea id="pasteCode" placeholder="ZNP-1234.eyJmcm9tI..."
+            rows="3" autocomplete="off" autocorrect="off" spellcheck="false"
+            style="width: 100%; padding: 8px; font-family: ui-monospace, monospace; font-size: 11px; background: var(--bg-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; resize: vertical;"></textarea>
+          <div class="muted" id="pasteHint" style="font-size: 11px; margin-top: 4px; min-height: 16px;"></div>
+          <div class="row" style="margin-top: 4px;">
+            <button id="pasteFromClipboard" class="btn ghost btn-sm">📥 Paste from clipboard</button>
+            <button id="importCode" class="btn btn-sm">Import full code</button>
+          </div>
+        </div>
+      </details>
     </section>
 
     <div id="result" hidden></div>
@@ -169,7 +176,63 @@ export function renderReceive(root, state, { refresh, trySyncPending }) {
     progress.textContent = 'Scanner stopped.';
   });
 
-  // Text-code paste-import fallback.
+  // --- 6-digit pair-code import (primary fallback) ---
+  const pairInput = root.querySelector('#pairInput');
+  const importPair = root.querySelector('#importPair');
+  pairInput.addEventListener('input', () => {
+    pairInput.value = pairInput.value.replace(/\D/g, '').slice(0, 6);
+    if (pairInput.value.length === 6) importPair.focus();
+  });
+  pairInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && pairInput.value.length === 6) importPair.click();
+  });
+  importPair.addEventListener('click', async () => {
+    const code = (pairInput.value || '').replace(/\D/g, '');
+    if (code.length !== 6) {
+      toast('Enter the 6-digit pair code', 'bad');
+      pairInput.focus();
+      return;
+    }
+    if (!isOnline()) {
+      toast('You need internet to fetch the pair code — try the full text code instead', 'bad');
+      return;
+    }
+    importPair.disabled = true;
+    importPair.innerHTML = '<span class="spinner"></span> Fetching…';
+    try {
+      const r = await api.fetchPairCode(code);
+      const payload = r.payload;
+      if (!payload || !Array.isArray(payload.tokens)) throw new Error('Bad payload');
+      const total = payload.tokens.reduce((s, t) => s + t.value_paise, 0);
+      const senderUpi = (payload.from && payload.from.upiId) || 'unknown';
+      const proceed = confirm(
+        `Import ${payload.tokens.length} tokens = ₹${(total/100).toFixed(2)} from ${senderUpi}?`,
+      );
+      if (!proceed) {
+        importPair.disabled = false;
+        importPair.textContent = 'Import ₹ from pair code';
+        return;
+      }
+      await acceptPayment(payload);
+      // Delete the code so nobody else can reuse it.
+      try { await api.consumePairCode(code); } catch (_) { /* best-effort */ }
+      pairInput.value = '';
+      importPair.disabled = false;
+      importPair.textContent = 'Import ₹ from pair code';
+    } catch (e) {
+      if (e.message === 'code_not_found') {
+        toast('Code not found — ask sender to regenerate', 'bad');
+      } else if (e.message === 'code_expired') {
+        toast('Code expired (5 min limit) — ask sender to regenerate', 'bad');
+      } else {
+        toast('Import failed: ' + (e.message || 'unknown'), 'bad');
+      }
+      importPair.disabled = false;
+      importPair.textContent = 'Import ₹ from pair code';
+    }
+  });
+
+  // --- Full text-code paste-import fallback (advanced) ---
   const pasteBox = root.querySelector('#pasteCode');
   const importBtn = root.querySelector('#importCode');
   const pasteHint = root.querySelector('#pasteHint');
