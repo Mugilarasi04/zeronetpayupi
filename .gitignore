@@ -16,3 +16,7 @@ build/
 .vscode/
 .firebase/
 firebase-debug.log
+
+# Private signing keys — NEVER commit
+backend/data/.ed25519.key
+backend/data/.token-secret
