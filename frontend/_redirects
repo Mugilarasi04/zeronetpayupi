@@ -1,4 +1,7 @@
-# SPA fallback: any deep-link falls back to index.html, which then
-# routes client-side. Real files under /js /css /vendor /icons served
-# from disk first — this only kicks in for missing paths.
-/*    /index.html   200
+# Clean URL for the proof-of-reserves page: /audit → /audit.html
+/audit    /audit.html   200
+
+# SPA fallback for everything else: deep-links drop into index.html so
+# the client-side router can take over. Real files under /js /css
+# /vendor /icons /audit.html are served from disk first.
+/*        /index.html   200

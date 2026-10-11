@@ -156,7 +156,8 @@ router.post('/confirm', async (req, res, next) => {
         issued_to_device: t.issued_to_device,
         issued_at: t.issued_at,
         expires_at: t.expires_at,
-        signature: t.signature,
+        signature: t.signature,                   // HMAC (back-compat)
+        signature_ed25519: t.signature_ed25519,   // Ed25519 (offline-verifiable)
       })),
     });
   } catch (e) { next(e); }

@@ -118,6 +118,15 @@ async function trySyncPending() {
 async function bootstrap() {
   updateNetUI();
 
+  // Fetch the backend's Ed25519 public key once per session so offline
+  // token verification works in the Receive view. Non-blocking.
+  (async () => {
+    try {
+      const { getPublicKeyHex } = await import('./tokenverify.js');
+      await getPublicKeyHex();
+    } catch (_) { /* offline — try again next launch */ }
+  })();
+
   const stored = localStorage.getItem('znp.user');
   if (stored) {
     try {

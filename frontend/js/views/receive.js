@@ -2,6 +2,7 @@ import { rupeesPlain, toast, uuid, isOnline } from '../util.js';
 import { store } from '../store.js';
 import { startScanner, parseFrame, tryReassemble, decodePayloadFromText } from '../qr.js';
 import { api } from '../api.js';
+import { verifyPayload } from '../tokenverify.js';
 
 export function renderReceive(root, state, { refresh, trySyncPending }) {
   root.innerHTML = `
@@ -109,6 +110,21 @@ export function renderReceive(root, state, { refresh, trySyncPending }) {
   async function acceptPayment(payload) {
     if (stopFn) stopFn();
     stopFn = null;
+
+    // Offline Ed25519 verification BEFORE adding tokens to the wallet.
+    // Legacy tokens (no signature_ed25519) return null → deferred to server
+    // at redeem time; verifiably bad tokens are rejected outright and the
+    // scanner restarts.
+    const v = await verifyPayload(payload);
+    if (!v.ok) {
+      toast(`⚠ Signature failed on ${v.failures.length} token(s) — rejected`, 'bad');
+      // restart scanner so user can try again
+      collected = new Map();
+      lastSid = null;
+      progress.textContent = 'Rejected — show me the sender\'s QR again';
+      startCam();
+      return;
+    }
 
     const total = payload.tokens.reduce((s, t) => s + t.value_paise, 0);
     const senderUpi = (payload.from && payload.from.upiId) || 'unknown';

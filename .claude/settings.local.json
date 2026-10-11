@@ -99,7 +99,18 @@
       "Bash(/usr/bin/curl -sS -m 10 https://zeronetpayofflineupi.pages.dev/config.js)",
       "Bash(/usr/bin/curl -sS -m 10 https://zeronetpayofflineupi.pages.dev/js/views/notifications.js)",
       "Bash(/usr/bin/curl -sS -m 8 -o /dev/null -w \"vendor qrcode HTTP %{http_code}\\\\n\" https://zeronetpayofflineupi.pages.dev/vendor/qrcode-generator.js)",
-      "Bash(/usr/bin/curl -sS -m 8 -o /dev/null -w \"vendor jsQR HTTP %{http_code}\\\\n\" https://zeronetpayofflineupi.pages.dev/vendor/jsQR.js)"
+      "Bash(/usr/bin/curl -sS -m 8 -o /dev/null -w \"vendor jsQR HTTP %{http_code}\\\\n\" https://zeronetpayofflineupi.pages.dev/vendor/jsQR.js)",
+      "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w 'HTTP %{http_code}\\\\n' https://upizeronetpay.pages.dev/)",
+      "Bash(/usr/bin/curl -sS -m 10 https://upizeronetpay.pages.dev/service-worker.js)",
+      "Bash(python3 -c \"import reportlab; print\\(reportlab.__version__\\)\")",
+      "Bash(pip3 install *)",
+      "Bash(python3 -c \"import reportlab; print\\('reportlab', reportlab.__version__\\)\")",
+      "Bash(python3 /Users/mugilarasims/Desktop/zeronetpay/scripts/make_brief.py)",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 /Users/mugilarasims/Desktop/zeronetpay/scripts/make_report.py)",
+      "Bash(/usr/bin/curl -sS -m 8 https://upizeronetpay.pages.dev/js/views/pay.js)",
+      "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w '  root HTTP %{http_code}\\\\n' https://upizeronetpay.pages.dev/)",
+      "Bash(/usr/bin/curl -sS -m 10 https://upizeronetpay.pages.dev/config.js)"
     ]
   }
 }

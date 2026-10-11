@@ -130,4 +130,7 @@ export const api = {
   createPairCode: (payload) => call('POST', '/pair/create', { payload }),
   fetchPairCode: (code) => call('GET', `/pair/${code}`),
   consumePairCode: (code) => call('DELETE', `/pair/${code}`),
+  publicKey: () => call('GET', '/public-key'),
+  auditLog: (limit = 100) => call('GET', `/audit/log?limit=${limit}`),
+  auditVerify: () => call('GET', '/audit/verify'),
 };

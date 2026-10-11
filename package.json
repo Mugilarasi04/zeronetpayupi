@@ -13,8 +13,11 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
+    "@noble/ed25519": "^3.2.0",
     "cors": "^2.8.5",
     "express": "^4.21.1",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
     "jsqr": "^1.4.0",
     "qrcode-generator": "^1.4.4"
   },

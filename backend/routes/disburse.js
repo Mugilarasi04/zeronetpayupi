@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../lib/db');
 const { readSetting } = require('./settings');
+const audit = require('../lib/audit');
 
 const router = express.Router();
 
@@ -72,6 +73,9 @@ router.post('/:id/mark-paid', async (req, res, next) => {
     if (r.changes === 0) {
       return res.status(404).json({ error: 'settlement not found or already paid' });
     }
+    try {
+      await audit.append('disburse_mark_paid', { settlementId: req.params.id, ref }, 'operator');
+    } catch (_) { /* non-fatal */ }
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -141,6 +145,9 @@ router.post('/:id/confirm-received', async (req, res, next) => {
           SET disbursed = 1, disbursed_at = ?, disbursed_ref = ?
           WHERE id = ?`,
     ).run(Date.now(), ref || stamped, req.params.id);
+    try {
+      await audit.append('receiver_confirm_received', { settlementId: req.params.id, ref: ref || stamped }, receiverId);
+    } catch (_) { /* non-fatal */ }
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -158,6 +165,9 @@ router.post('/:id/complaint', async (req, res, next) => {
     if (r.changes === 0) {
       return res.status(400).json({ error: 'settlement already paid or not found' });
     }
+    try {
+      await audit.append('complaint_raised', { settlementId: req.params.id, note }, 'receiver');
+    } catch (_) { /* non-fatal */ }
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

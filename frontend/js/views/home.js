@@ -81,6 +81,19 @@ export function renderHome(root, state, { navigate }) {
       </div>
     </div>
 
+    <h2>Trust &amp; transparency</h2>
+    <div class="card tight" style="background: var(--card-hi); border-color: rgba(34,197,94,0.35);">
+      <div class="spaced">
+        <div>
+          <div style="font-weight: 700;">🔒 Public proof of reserves</div>
+          <small class="muted">
+            Verify in real time that every token in circulation is backed 1:1 by cash in the escrow account.
+          </small>
+        </div>
+        <a class="btn btn-sm" href="/audit" target="_blank" rel="noopener">Open ↗</a>
+      </div>
+    </div>
+
     <h2>Escrow operator</h2>
     <div class="card tight">
       <div class="spaced">

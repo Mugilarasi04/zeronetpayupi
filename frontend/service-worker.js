@@ -2,17 +2,19 @@
 // even with no internet (so you can receive offline payments after the
 // receiver puts the phone in airplane mode).
 
-const CACHE = 'znp-v25';
+const CACHE = 'znp-v26';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/audit.html',
   '/css/styles.css',
   '/js/app.js',
   '/js/api.js',
   '/js/util.js',
   '/js/store.js',
   '/js/qr.js',
+  '/js/tokenverify.js',
   '/js/views/onboarding.js',
   '/js/views/home.js',
   '/js/views/load.js',
@@ -29,6 +31,7 @@ const APP_SHELL = [
   '/config.js',
   '/vendor/qrcode-generator.js',
   '/vendor/jsQR.js',
+  '/vendor/ed25519.js',
   '/icons/icon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

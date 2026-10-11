@@ -1,6 +1,22 @@
 const db = require('./db');
 const config = require('./config');
 const { signToken, newId } = require('./crypto');
+const { signTokenEd25519 } = require('./signing');
+const audit = require('./audit');
+
+// Ensure the Ed25519 column exists on the tokens table (migration from
+// HMAC-only). SQLite needs ADD COLUMN with no default to be nullable.
+(async () => {
+  try {
+    const info = await db.prepare('PRAGMA table_info(tokens)').all();
+    const cols = info.map((r) => r.name);
+    if (!cols.includes('signature_ed25519')) {
+      await db.exec('ALTER TABLE tokens ADD COLUMN signature_ed25519 TEXT');
+    }
+  } catch (e) {
+    console.warn('[escrow] ed25519 column migration failed', e.message);
+  }
+})();
 
 const DENOM_PAISE = Math.round(config.tokenDenomination * 100);
 
@@ -50,15 +66,29 @@ async function creditEscrowAndIssueTokens({ userId, deviceId, amountPaise, loadO
         load_order_id: loadOrderId,
       };
       token.signature = signToken(token);
+      token.signature_ed25519 = signTokenEd25519(token);
       await tx.run(
         `INSERT INTO tokens
           (id, value_paise, issued_to_user_id, issued_to_device, issued_at, expires_at,
-           signature, spent, load_order_id)
+           signature, signature_ed25519, spent, load_order_id)
           VALUES (@id, @value_paise, @issued_to_user_id, @issued_to_device, @issued_at,
-                  @expires_at, @signature, 0, @load_order_id)`,
+                  @expires_at, @signature, @signature_ed25519, 0, @load_order_id)`,
         token,
       );
       issued.push(token);
+    }
+    return issued;
+  }).then(async (issued) => {
+    // Audit log after the DB txn commits — audit append is best-effort
+    // and must NEVER rollback a successful mint.
+    try {
+      await audit.append('mint', {
+        userId, deviceId, amountPaise, loadOrderId,
+        tokenCount: issued.length,
+        tokenIds: issued.map((t) => t.id),
+      }, userId);
+    } catch (e) {
+      console.warn('[escrow] audit append failed (mint)', e.message);
     }
     return issued;
   });
@@ -111,6 +141,16 @@ async function debitEscrowAndSettle({ receiverId, tokens, senderDevice }) {
       now,
     );
   });
+
+  try {
+    await audit.append('redeem', {
+      settlementId, receiverId, senderDevice,
+      tokenCount: tokens.length, totalPaise,
+      tokenIds: tokens.map((t) => t.id),
+    }, receiverId);
+  } catch (e) {
+    console.warn('[escrow] audit append failed (redeem)', e.message);
+  }
 
   return { settlementId, totalPaise, tokenCount: tokens.length };
 }
