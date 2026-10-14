@@ -4,6 +4,7 @@ const cors = require('cors');
 
 const config = require('./lib/config');
 const db = require('./lib/db');
+const security = require('./lib/security');
 
 async function main() {
   await db.init();
@@ -14,20 +15,36 @@ async function main() {
   const systemRoutes = require('./routes/system');
   const disburseRoutes = require('./routes/disburse');
   const pairRoutes = require('./routes/pair');
+  const adminRoutes = require('./routes/admin');
   const { router: settingsRoutes, seed: seedSettings } = require('./routes/settings');
 
   await seedSettings();
 
   const app = express();
   app.disable('x-powered-by');
+  app.set('trust proxy', 1); // Render / Cloudflare are in front — trust X-Forwarded-* for rate limit keys.
+
+  // Security headers first.
+  app.use(security.headers);
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
+
+  // Global kill switch — gates all mutating API calls.
+  app.use(security.freezeGate);
+
+  // Rate-limit writes on sensitive endpoints.
+  app.use('/api/auth', security.writeLimiter);
+  app.use('/api/load', security.writeLimiter);
+  app.use('/api/pair', security.writeLimiter);
+  app.use('/api/pair', security.pairFetchLimiter);
+  app.use('/api/redeem', security.writeLimiter);
 
   app.use('/api/auth', authRoutes);
   app.use('/api/load', loadRoutes);
   app.use('/api/settings', settingsRoutes);
   app.use('/api/disburse', disburseRoutes);
   app.use('/api/pair', pairRoutes);
+  app.use('/api/admin', adminRoutes);
   app.use('/api', redeemRoutes);
   app.use('/api', systemRoutes);
 

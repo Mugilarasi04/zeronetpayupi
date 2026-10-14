@@ -1,6 +1,7 @@
 import { toast, escapeHtml } from '../util.js';
 import { authenticate as bioAuth, isBiometricEnrolled } from '../biometric.js';
-import { hasPin, setPin, verifyPin, unlockApp } from '../lock.js';
+import { hasPin, setPin, verifyPin, unlockApp, lockoutStatus, clearFails } from '../lock.js';
+import { store } from '../store.js';
 
 /**
  * Lock screen. Shown whenever the session isn't unlocked and a user is
@@ -116,13 +117,37 @@ export function renderLock(root, state, { onUnlock }) {
         pinSubmit.disabled = false;
         return;
       }
+      clearFails();
       unlockApp();
       toast('PIN set — unlocked', 'good');
       onUnlock();
     } else {
-      const ok = await verifyPin(v);
-      if (!ok) {
-        toast('Wrong PIN', 'bad');
+      // Pre-check lockout so we never leak the "right PIN" response
+      // while throttled.
+      const pre = lockoutStatus();
+      if (pre.locked) {
+        handleLockout(pre);
+        pinSubmit.disabled = false;
+        return;
+      }
+      const r = await verifyPin(v);
+      if (!r.ok) {
+        if (r.reason === 'wipe') {
+          handleWipe();
+          return;
+        }
+        if (r.reason === 'locked') {
+          handleLockout({ until: r.retryAt });
+          pinSubmit.disabled = false;
+          return;
+        }
+        const left = typeof r.attemptsLeft === 'number' ? r.attemptsLeft : null;
+        toast(
+          left !== null && left > 0
+            ? `Wrong PIN · ${left} attempt${left === 1 ? '' : 's'} left before lockout`
+            : 'Wrong PIN',
+          'bad',
+        );
         pinInput.value = '';
         pinInput.focus();
         pinSubmit.disabled = false;
@@ -133,4 +158,33 @@ export function renderLock(root, state, { onUnlock }) {
       onUnlock();
     }
   });
+
+  function handleLockout(info) {
+    const left = Math.max(0, Math.ceil(((info.until || 0) - Date.now()) / 60000));
+    pinInput.disabled = true;
+    pinSubmit.disabled = true;
+    pinInput.value = '';
+    pinLabel.innerHTML = `🔒 Too many wrong PINs — locked for ${left} minute${left === 1 ? '' : 's'}.`;
+    pinLabel.style.color = '#fca5a5';
+    toast('PIN locked — try again later', 'bad');
+  }
+
+  async function handleWipe() {
+    pinInput.disabled = true;
+    pinSubmit.disabled = true;
+    pinLabel.innerHTML = '⚠ Too many wrong PINs — wiping this device.';
+    pinLabel.style.color = '#fca5a5';
+    toast('Wiping device after too many wrong PINs', 'bad');
+    try {
+      await store.clearTokens();
+      await store.clearLedger();
+    } catch (_) { /* best-effort */ }
+    localStorage.removeItem('znp.user');
+    localStorage.removeItem('znp.device');
+    localStorage.removeItem('znp.pin.hash');
+    localStorage.removeItem('znp.pin.salt');
+    localStorage.removeItem('znp.pin.fails');
+    sessionStorage.removeItem('znp.unlocked');
+    setTimeout(() => location.reload(), 1500);
+  }
 }

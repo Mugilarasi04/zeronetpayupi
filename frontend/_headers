@@ -1,10 +1,26 @@
+# Security headers applied to every response from Cloudflare Pages.
+
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=(), interest-cohort=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: cross-origin
+
 # Service worker must not be cached — otherwise stale SW can lock users
 # on an old app version.
 /service-worker.js
   Cache-Control: no-cache
   Service-Worker-Allowed: /
 
-# Config.js holds the API base URL. Never cache it, so a Railway URL
+# config.js holds the API base URL. Never cache it, so a Render URL
 # change is picked up on next reload.
 /config.js
   Cache-Control: no-cache
+
+# audit.html is a live surface — don't cache the page itself (the API
+# calls it makes are already fresh).
+/audit.html
+  Cache-Control: no-cache, no-store, must-revalidate
