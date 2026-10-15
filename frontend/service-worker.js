@@ -2,7 +2,7 @@
 // even with no internet (so you can receive offline payments after the
 // receiver puts the phone in airplane mode).
 
-const CACHE = 'znp-v27';
+const CACHE = 'znp-v29';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -25,6 +25,7 @@ const APP_SHELL = [
   '/js/views/settings.js',
   '/js/views/disburse.js',
   '/js/views/cashout.js',
+  '/js/views/myescrow.js',
   '/js/biometric.js',
   '/js/lock.js',
   '/js/views/lock.js',

@@ -43,6 +43,9 @@ export function renderLoad(root, state, { refresh, navigate }) {
     } catch (e) {
       if (e.code === 'offline') {
         toast('Loading needs internet', 'bad');
+      } else if (e.message === 'no_escrow') {
+        toast('Pick an escrow first — opening the escrow picker', 'warn');
+        setTimeout(() => navigate('myescrow'), 800);
       } else if (e.message === 'escrow_not_configured') {
         toast('Configure the escrow UPI ID in Settings first', 'bad');
         setTimeout(() => navigate('settings'), 800);

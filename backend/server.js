@@ -16,6 +16,7 @@ async function main() {
   const disburseRoutes = require('./routes/disburse');
   const pairRoutes = require('./routes/pair');
   const adminRoutes = require('./routes/admin');
+  const escrowRelRoutes = require('./routes/escrow_relations');
   const { router: settingsRoutes, seed: seedSettings } = require('./routes/settings');
 
   await seedSettings();
@@ -45,6 +46,7 @@ async function main() {
   app.use('/api/disburse', disburseRoutes);
   app.use('/api/pair', pairRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/escrow', escrowRelRoutes);
   app.use('/api', redeemRoutes);
   app.use('/api', systemRoutes);
 

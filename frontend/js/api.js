@@ -133,4 +133,19 @@ export const api = {
   publicKey: () => call('GET', '/public-key'),
   auditLog: (limit = 100) => call('GET', `/audit/log?limit=${limit}`),
   auditVerify: () => call('GET', '/audit/verify'),
+
+  // Federated escrow
+  escrowRequest: (userId, byUpiOrPhone) =>
+    call('POST', '/escrow/request', { userId, byUpiOrPhone }),
+  escrowApprove: (relationshipId, approverUserId) =>
+    call('POST', `/escrow/${relationshipId}/approve`, { approverUserId }),
+  escrowReject: (relationshipId, approverUserId) =>
+    call('POST', `/escrow/${relationshipId}/reject`, { approverUserId }),
+  escrowRevoke: (relationshipId, byUserId) =>
+    call('POST', `/escrow/${relationshipId}/revoke`, { byUserId }),
+  escrowActive: (userId) => call('GET', `/escrow/active/${userId}`),
+  escrowOutgoing: (userId) => call('GET', `/escrow/outgoing/${userId}`),
+  escrowIncoming: (userId) => call('GET', `/escrow/incoming/${userId}`),
+  disbursePendingForOperator: (issuerUserId) =>
+    call('GET', `/disburse/pending?issuerUserId=${encodeURIComponent(issuerUserId)}`),
 };

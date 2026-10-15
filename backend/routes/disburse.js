@@ -8,19 +8,27 @@ const router = express.Router();
 router.get('/pending', async (req, res, next) => {
   try {
     const escrowName = (await readSetting('escrow_name')) || 'ZeroNetPay Escrow';
+    // Federated filter: ?issuerUserId=XYZ returns only payouts owed by
+    // that escrow. Default (no param) returns all settlements including
+    // legacy ones issued by the global operator.
+    const issuerFilter = req.query.issuerUserId;
+    const whereIssuer = issuerFilter ? 'WHERE s.issuer_user_id = ?' : '';
+    const args = issuerFilter ? [issuerFilter] : [];
     const rows = await db
       .prepare(
         `SELECT s.id, s.amount_paise, s.token_count, s.created_at,
                 s.disbursed, s.disbursed_at, s.disbursed_ref,
                 s.complaint_raised, s.complaint_at, s.complaint_note,
+                s.issuer_user_id, s.issuer_upi_id,
                 u.upi_id AS receiver_upi, u.id AS receiver_id,
                 u.phone AS receiver_phone
            FROM settlements s
            JOIN users u ON u.id = s.receiver_id
+           ${whereIssuer}
            ORDER BY s.disbursed ASC, s.complaint_raised DESC, s.created_at DESC
            LIMIT 200`,
       )
-      .all();
+      .all(...args);
     const items = rows.map((r) => {
       const amt = (r.amount_paise / 100).toFixed(2);
       const note = 'ZNP-Settle ' + r.id.slice(-8);
@@ -39,6 +47,8 @@ router.get('/pending', async (req, res, next) => {
         receiverUpi: r.receiver_upi,
         receiverId: r.receiver_id,
         receiverPhone: r.receiver_phone || null,
+        issuerUserId: r.issuer_user_id || null,
+        issuerUpiId: r.issuer_upi_id || null,
         createdAt: r.created_at,
         disbursed: !!r.disbursed,
         disbursedAt: r.disbursed_at,

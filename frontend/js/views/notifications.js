@@ -28,6 +28,15 @@ function fmtCountdown(ms) {
 
 export async function renderNotifications(root, state, { navigate, refresh }) {
   root.innerHTML = `
+    <section class="card" id="escrowReqCard" hidden>
+      <h3>🤝 Escrow requests to me</h3>
+      <p class="muted" style="font-size: 13px;">
+        These friends want you to be their escrow — the person who holds their loaded
+        money and pays it out when they cash out. Approve only if you're actually willing.
+      </p>
+      <div id="escrowReqList" style="margin-top: 10px;"></div>
+    </section>
+
     <section class="card">
       <h3>My cashouts</h3>
       <p class="muted">Every cashout you've submitted, along with its payout status. If a
@@ -41,10 +50,78 @@ export async function renderNotifications(root, state, { navigate, refresh }) {
   `;
 
   const list = root.querySelector('#list');
+  const escrowReqCard = root.querySelector('#escrowReqCard');
+  const escrowReqList = root.querySelector('#escrowReqList');
   root.querySelector('#back').addEventListener('click', () => navigate('home'));
-  root.querySelector('#refresh').addEventListener('click', () => load());
+  root.querySelector('#refresh').addEventListener('click', () => {
+    load();
+    loadEscrowRequests();
+  });
 
-  await load();
+  await Promise.all([load(), loadEscrowRequests()]);
+
+  async function loadEscrowRequests() {
+    try {
+      const r = await api.escrowIncoming(state.user.id);
+      const pending = (r.rows || []).filter((x) => x.status === 'requested');
+      if (!pending.length) {
+        escrowReqCard.hidden = true;
+        return;
+      }
+      escrowReqCard.hidden = false;
+      escrowReqList.innerHTML = pending.map((req) => `
+        <div class="card tight" style="margin-bottom: 8px; border-color: rgba(251,191,36,0.4);">
+          <div class="spaced">
+            <div>
+              <div style="font-weight: 700;">${escapeHtml(req.user_upi)}</div>
+              <small class="muted">
+                ${req.user_phone ? escapeHtml(req.user_phone) + ' · ' : ''}${formatRelative(req.requested_at)}
+              </small>
+            </div>
+            <span class="chip warn">⏳ pending</span>
+          </div>
+          <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn success btn-sm" data-approve="${escapeHtml(req.id)}">✓ Approve</button>
+            <button class="btn ghost btn-sm" data-reject="${escapeHtml(req.id)}">✗ Reject</button>
+            <button class="btn ghost btn-sm" data-open-escrow="1">Open escrow page →</button>
+          </div>
+        </div>
+      `).join('');
+
+      escrowReqList.querySelectorAll('[data-approve]').forEach((b) =>
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          try {
+            await api.escrowApprove(b.dataset.approve, state.user.id);
+            toast('Approved — you are now their escrow', 'good');
+            await loadEscrowRequests();
+          } catch (e) {
+            toast(e.message || 'Approve failed', 'bad');
+            b.disabled = false;
+          }
+        }),
+      );
+      escrowReqList.querySelectorAll('[data-reject]').forEach((b) =>
+        b.addEventListener('click', async () => {
+          if (!confirm('Reject this escrow request?')) return;
+          b.disabled = true;
+          try {
+            await api.escrowReject(b.dataset.reject, state.user.id);
+            toast('Rejected', 'good');
+            await loadEscrowRequests();
+          } catch (e) {
+            toast(e.message || 'Reject failed', 'bad');
+            b.disabled = false;
+          }
+        }),
+      );
+      escrowReqList.querySelectorAll('[data-open-escrow]').forEach((b) =>
+        b.addEventListener('click', () => navigate('myescrow')),
+      );
+    } catch (_) {
+      escrowReqCard.hidden = true;
+    }
+  }
 
   // Live poll — every 10 seconds re-fetch from server so a fresh mark-paid
   // by the escrow operator shows up here as "✓ paid" without user tapping

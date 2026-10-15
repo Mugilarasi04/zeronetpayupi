@@ -45,16 +45,39 @@ router.post('/create', async (req, res, next) => {
     const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
     if (!user) return res.status(404).json({ error: 'user not found' });
 
-    const escrowUpiId = await readSetting('escrow_upi_id');
-    if (!escrowUpiId) {
-      return res.status(400).json({
-        error: 'escrow_not_configured',
-        message:
-          'Set the escrow UPI ID in Settings before loading money. ' +
-          'This is the real UPI account that will receive funds.',
-      });
+    // Federated escrow: look up the user's active escrow (another user who
+    // approved to hold their funds). Fall back to the global operator-run
+    // escrow if the user hasn't picked a personal escrow yet.
+    const escrowRel = require('../lib/escrow_relations');
+    const active = await escrowRel.activeEscrowFor(userId);
+
+    let escrowUpiId, escrowName, issuerUserId, issuerUpiId;
+    if (active) {
+      escrowUpiId  = active.escrowUpiId;
+      escrowName   = 'Escrow: ' + active.escrowUpiId;
+      issuerUserId = active.escrowUserId;
+      issuerUpiId  = active.escrowUpiId;
+    } else {
+      escrowUpiId = await readSetting('escrow_upi_id');
+      if (!escrowUpiId) {
+        return res.status(400).json({
+          error: 'no_escrow',
+          message:
+            'You have not chosen an escrow yet. Go to Settings → Choose Escrow and pick a trusted friend first.',
+        });
+      }
+      escrowName   = (await readSetting('escrow_name')) || 'ZeroNetPay Escrow';
+      issuerUserId = null;
+      issuerUpiId  = escrowUpiId;
     }
-    const escrowName = (await readSetting('escrow_name')) || 'ZeroNetPay Escrow';
+
+    // Make sure the issuer_user_id / issuer_upi_id columns on load_orders exist.
+    try {
+      const info = await db.prepare('PRAGMA table_info(load_orders)').all();
+      const cols = info.map((r) => r.name);
+      if (!cols.includes('issuer_user_id')) await db.exec('ALTER TABLE load_orders ADD COLUMN issuer_user_id TEXT');
+      if (!cols.includes('issuer_upi_id'))  await db.exec('ALTER TABLE load_orders ADD COLUMN issuer_upi_id TEXT');
+    } catch (_) { /* migration best-effort */ }
 
     const order = {
       id: newId('LOAD'),
@@ -62,10 +85,13 @@ router.post('/create', async (req, res, next) => {
       amount_paise: amountPaise,
       status: 'pending',
       created_at: Date.now(),
+      issuer_user_id: issuerUserId,
+      issuer_upi_id: issuerUpiId,
     };
     await db.prepare(
-      `INSERT INTO load_orders (id, user_id, amount_paise, status, created_at)
-       VALUES (@id, @user_id, @amount_paise, @status, @created_at)`,
+      `INSERT INTO load_orders
+         (id, user_id, amount_paise, status, created_at, issuer_user_id, issuer_upi_id)
+         VALUES (@id, @user_id, @amount_paise, @status, @created_at, @issuer_user_id, @issuer_upi_id)`,
     ).run(order);
 
     const note = 'ZNP ' + order.id.slice(-8);
@@ -84,6 +110,9 @@ router.post('/create', async (req, res, next) => {
       upiLink,
       escrowUpiId,
       escrowName,
+      issuerUserId,
+      issuerUpiId,
+      personalEscrow: !!active,
       note,
       status: 'pending',
     });
@@ -138,6 +167,8 @@ router.post('/confirm', async (req, res, next) => {
       deviceId: user.device_id,
       amountPaise: order.amount_paise,
       loadOrderId: order.id,
+      issuerUserId: order.issuer_user_id || null,
+      issuerUpiId: order.issuer_upi_id || null,
     });
 
     await db.prepare(
@@ -158,6 +189,8 @@ router.post('/confirm', async (req, res, next) => {
         expires_at: t.expires_at,
         signature: t.signature,                   // HMAC (back-compat)
         signature_ed25519: t.signature_ed25519,   // Ed25519 (offline-verifiable)
+        issuer_user_id: t.issuer_user_id || null, // federated: whose escrow holds this
+        issuer_upi_id: t.issuer_upi_id || null,
       })),
     });
   } catch (e) { next(e); }

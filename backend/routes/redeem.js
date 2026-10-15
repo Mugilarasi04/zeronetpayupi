@@ -96,7 +96,12 @@ router.post('/redeem', async (req, res, next) => {
         }
       }
 
-      accepted.push({ id: stored.id, value_paise: stored.value_paise });
+      accepted.push({
+        id: stored.id,
+        value_paise: stored.value_paise,
+        issuer_user_id: stored.issuer_user_id || null,
+        issuer_upi_id: stored.issuer_upi_id || null,
+      });
     }
 
     if (honeyTripped) {

@@ -48,7 +48,9 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
   async function reload() {
     let data;
     try {
-      data = await api.pendingDisbursements();
+      // Federated: only show payouts I owe (tokens where I'm the issuer).
+      // The current user's id is the issuer_user_id of their escrow-created tokens.
+      data = await api.disbursePendingForOperator(state.user.id);
     } catch (e) {
       summary.innerHTML = `<div class="muted">Offline — connect to the internet to see pending disbursements.</div>`;
       list.innerHTML = '';

@@ -94,6 +94,16 @@ export function renderHome(root, state, { navigate }) {
       </div>
     </div>
 
+    <div class="card tight" style="background: var(--card-hi); border-color: rgba(59,130,246,0.4); margin-top: 10px;">
+      <div class="spaced">
+        <div>
+          <div style="font-weight: 700;">🤝 My escrow &amp; requests <span id="escrowBadge" style="display:none; background:#ef4444; color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:999px; margin-left:4px;">0</span></div>
+          <small class="muted" id="escrowSubtitle">loading…</small>
+        </div>
+        <button class="btn btn-sm" data-go="myescrow">Open</button>
+      </div>
+    </div>
+
     <h2>Escrow operator</h2>
     <div class="card tight">
       <div class="spaced">
@@ -119,7 +129,7 @@ export function renderHome(root, state, { navigate }) {
   async function refreshDisb() {
     let d;
     try {
-      d = await api.pendingDisbursements();
+      d = await api.disbursePendingForOperator(state.user.id);
     } catch (_) {
       return; // offline
     }
@@ -179,6 +189,7 @@ export function renderHome(root, state, { navigate }) {
     );
   }
   refreshDisb();
+  refreshEscrowCard();
   // Light polling so a freshly-redeemed settlement appears within seconds.
   // Self-cleans: if the banner element has been wiped (user navigated to
   // another tab and view innerHTML was replaced), the timer clears itself.
@@ -191,7 +202,37 @@ export function renderHome(root, state, { navigate }) {
       return;
     }
     refreshDisb();
+    refreshEscrowCard();
   }, 5000);
+
+  // Updates the "My escrow & requests" tile with: active escrow status + a
+  // red pill when there are pending escrow requests I need to approve.
+  async function refreshEscrowCard() {
+    const sub = root.querySelector('#escrowSubtitle');
+    const badge = root.querySelector('#escrowBadge');
+    if (!sub || !badge) return;
+    try {
+      const [act, inc] = await Promise.all([
+        api.escrowActive(state.user.id),
+        api.escrowIncoming(state.user.id),
+      ]);
+      const pendingIncoming = (inc.rows || []).filter((r) => r.status === 'requested');
+      if (pendingIncoming.length > 0) {
+        badge.style.display = 'inline-block';
+        badge.textContent = String(pendingIncoming.length);
+      } else {
+        badge.style.display = 'none';
+      }
+      if (act.active) {
+        sub.innerHTML = `Your money sits with <strong>${act.active.escrowUpiId}</strong>. ${pendingIncoming.length > 0 ? `<span style="color:#fbbf24;">${pendingIncoming.length} request${pendingIncoming.length === 1 ? '' : 's'} waiting for your approval.</span>` : ''}`;
+        sub.style.color = '';
+      } else {
+        sub.innerHTML = `<span style="color:#fca5a5;">⚠ No escrow chosen yet. Pick one before loading money.</span>${pendingIncoming.length > 0 ? ` <span style="color:#fbbf24;">· ${pendingIncoming.length} request${pendingIncoming.length === 1 ? '' : 's'} to approve.</span>` : ''}`;
+      }
+    } catch (_) {
+      sub.textContent = 'Offline — can\'t load escrow info.';
+    }
+  }
 
   const recent = root.querySelector('#recent');
   if (state.ledger.length === 0) {
