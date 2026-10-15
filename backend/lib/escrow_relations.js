@@ -239,9 +239,11 @@ async function lookupUserByUpiOrPhone(q) {
   const trimmed = String(q || '').trim();
   if (!trimmed) return null;
 
-  // UPI id form: name@bank
+  // UPI id form: name@bank — case-insensitive match
   if (trimmed.includes('@')) {
-    const upiMatch = await db.prepare('SELECT id, upi_id, phone FROM users WHERE upi_id = ?').get(trimmed);
+    const upiMatch = await db.prepare(
+      'SELECT id, upi_id, phone FROM users WHERE LOWER(upi_id) = LOWER(?)',
+    ).get(trimmed);
     if (upiMatch) return upiMatch;
     // No fallback — a thing with @ is a UPI id, not a phone.
     return null;
