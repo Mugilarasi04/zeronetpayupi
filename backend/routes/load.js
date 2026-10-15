@@ -15,6 +15,8 @@ const router = express.Router();
     const cols = info.map((r) => r.name);
     if (!cols.includes('proof_data_url'))      await db.exec('ALTER TABLE load_orders ADD COLUMN proof_data_url TEXT');
     if (!cols.includes('proof_uploaded_at'))   await db.exec('ALTER TABLE load_orders ADD COLUMN proof_uploaded_at INTEGER');
+    if (!cols.includes('issuer_user_id'))      await db.exec('ALTER TABLE load_orders ADD COLUMN issuer_user_id TEXT');
+    if (!cols.includes('issuer_upi_id'))       await db.exec('ALTER TABLE load_orders ADD COLUMN issuer_upi_id TEXT');
     if (!cols.includes('utr'))                 await db.exec('ALTER TABLE load_orders ADD COLUMN utr TEXT');
     if (!cols.includes('utr_note'))            await db.exec('ALTER TABLE load_orders ADD COLUMN utr_note TEXT');
     if (!cols.includes('utr_submitted_at'))    await db.exec('ALTER TABLE load_orders ADD COLUMN utr_submitted_at INTEGER');
