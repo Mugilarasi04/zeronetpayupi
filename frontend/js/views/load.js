@@ -1,6 +1,6 @@
 import { api } from '../api.js';
 import { store } from '../store.js';
-import { rupeesPlain, toast, uuid, copyText, isMobile, escapeHtml } from '../util.js';
+import { rupeesPlain, toast, uuid, copyText, isMobile, escapeHtml, whatsappLink } from '../util.js';
 import { renderToCanvas } from '../qr.js';
 
 export function renderLoad(root, state, { refresh, navigate }) {
@@ -107,23 +107,28 @@ export function renderLoad(root, state, { refresh, navigate }) {
 
         <div style="height: 16px"></div>
         <div class="card tight" style="background: var(--card-hi); border-color: rgba(59,130,246,0.35);">
-          <p style="margin: 0 0 8px 0;"><strong>📸 Upload payment screenshot to mint tokens</strong></p>
+          <p style="margin: 0 0 8px 0;"><strong>🔢 Enter the UPI reference number (UTR)</strong></p>
           <p class="muted" style="margin: 0 0 10px 0; font-size: 12px;">
-            Take a screenshot of your UPI app's "Payment Successful" page and upload it.
-            The escrow operator uses this as proof of payment before releasing your tokens.
+            After your UPI app shows "Payment Successful", you'll get an SMS from your bank
+            with a reference number like <code>UPI/P2A/452198765432</code>. Paste the digits
+            (the UTR) here. Your escrow friend will check their bank app to confirm they
+            actually received the money before your tokens mint.
           </p>
-          <input id="proofFile" type="file" accept="image/*" style="width: 100%; padding: 8px; background: var(--bg-2); border: 1px dashed var(--border); border-radius: 8px; color: var(--text);" />
-          <div style="height: 6px"></div>
-          <div id="proofPreview" style="display:none; text-align:center;">
-            <img id="proofImg" alt="Payment proof preview" style="max-width: 100%; max-height: 180px; border-radius: 8px; margin-top: 8px;" />
-            <div class="muted" style="font-size: 11px; margin-top: 4px;" id="proofMeta"></div>
-          </div>
+          <label for="utrInput" style="font-size:13px;">UPI reference / UTR</label>
+          <input id="utrInput" type="text" inputmode="numeric" placeholder="e.g. 452198765432"
+                 autocomplete="off" autocorrect="off" spellcheck="false"
+                 style="letter-spacing: 1px;" />
+          <small class="muted" id="utrHint" style="display:block; margin-top: 4px;"></small>
+          <div style="height: 8px"></div>
+          <label for="utrNote" style="font-size:13px;">Optional note (e.g. "paid 2:30pm from HDFC")</label>
+          <input id="utrNote" type="text" maxlength="200" placeholder="Something to help your escrow find the credit"
+                 autocomplete="off" />
         </div>
         <div style="height: 12px"></div>
-        <button id="confirm" class="btn success" disabled>Upload screenshot first</button>
+        <button id="submitUtr" class="btn success" disabled>Submit for confirmation</button>
         <small class="muted" style="display:block; margin-top: 8px;">
-          Tokens are only issued after your screenshot is uploaded.
-          In production this is automatic via a bank webhook.
+          Your tokens mint only after your escrow (<strong>${escapeHtml(ord.escrowUpiId)}</strong>)
+          confirms the money arrived in their bank.
         </small>
       </div>
     `;
@@ -150,65 +155,121 @@ export function renderLoad(root, state, { refresh, navigate }) {
       toast(ok ? 'Reference copied' : 'Copy failed', ok ? 'good' : 'bad');
     });
 
-    // --- Screenshot handling ---
-    let proofDataUrl = null;
-    const proofFile = container.querySelector('#proofFile');
-    const proofPreview = container.querySelector('#proofPreview');
-    const proofImg = container.querySelector('#proofImg');
-    const proofMeta = container.querySelector('#proofMeta');
-    const confirmBtn = container.querySelector('#confirm');
+    // --- UTR submit + waiting-for-confirmation flow ---
+    const utrInput = container.querySelector('#utrInput');
+    const utrNote  = container.querySelector('#utrNote');
+    const utrHint  = container.querySelector('#utrHint');
+    const submit   = container.querySelector('#submitUtr');
 
-    proofFile.addEventListener('change', async (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      if (!file.type.startsWith('image/')) {
-        toast('Please pick an image file', 'bad');
+    utrInput.addEventListener('input', () => {
+      const v = utrInput.value.trim();
+      if (!v) {
+        utrHint.textContent = '';
+        submit.disabled = true;
         return;
       }
-      try {
-        proofDataUrl = await shrinkImage(file, { maxDim: 1200, quality: 0.72 });
-        proofImg.src = proofDataUrl;
-        proofPreview.style.display = 'block';
-        const kb = Math.round((proofDataUrl.length * 3) / 4 / 1024);
-        proofMeta.textContent = `${file.name} · ~${kb} KB after resize`;
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Verify & mint tokens';
-      } catch (err) {
-        console.error(err);
-        toast('Could not read the image — try another file', 'bad');
+      if (/^[A-Za-z0-9]{6,32}$/.test(v)) {
+        utrHint.textContent = '→ looks like a valid UPI reference';
+        utrHint.style.color = '#86efac';
+        submit.disabled = false;
+      } else {
+        utrHint.textContent = 'UPI reference is usually 10–22 digits/letters';
+        utrHint.style.color = '#fca5a5';
+        submit.disabled = true;
       }
     });
 
-    confirmBtn.addEventListener('click', async () => {
-      if (!proofDataUrl) {
-        toast('Upload a payment screenshot first', 'bad');
-        return;
-      }
-      confirmBtn.disabled = true;
-      confirmBtn.innerHTML = '<span class="spinner"></span> Verifying screenshot & minting…';
+    submit.addEventListener('click', async () => {
+      const utr = utrInput.value.trim();
+      const note = utrNote.value.trim();
+      submit.disabled = true;
+      submit.innerHTML = '<span class="spinner"></span> Submitting…';
       try {
-        const r = await api.confirmLoad(ord.orderId, proofDataUrl);
-        await store.addTokens(r.tokens);
-        await store.addLedger({
-          id: uuid(),
-          ts: Date.now(),
-          kind: 'load',
-          amount: ord.amount,
-          ref: ord.orderId,
-          note: 'Loaded ' + rupeesPlain(ord.amount * 100) + ' to ' + ord.escrowUpiId,
-        });
-        await renderDoneStep(doneContainer, ord, r);
+        const r = await api.submitLoadUtr(ord.orderId, utr, note);
+        toast('Submitted — waiting for your escrow to confirm', 'good');
+        await renderWaitingStep(doneContainer, ord, r);
         container.hidden = true;
         doneContainer.hidden = false;
-        toast('Screenshot verified — tokens added to wallet', 'good');
-        await refresh();
       } catch (e) {
-        toast(e.code === 'offline' ? 'Need internet to mint tokens' : e.message, 'bad');
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Verify & mint tokens';
+        toast(e.message || 'Could not submit UTR', 'bad');
+        submit.disabled = false;
+        submit.textContent = 'Submit for confirmation';
       }
     });
   }
+
+  // "Waiting for Bob to confirm" screen. Polls /load/status every 4s so the
+  // tokens appear in the wallet the moment Bob taps Confirm.
+  async function renderWaitingStep(container, ord, submitResp) {
+    const issuer = submitResp.issuer; // { id, upiId, phone } or null
+    const waMsg =
+      `Hi! I just paid ₹${ord.amount} to your UPI (${ord.escrowUpiId}) for a ZeroNetPay load.\n\n` +
+      `UPI reference: ${submitResp.utr}\n` +
+      `Please check your bank app and tap Confirm in ZeroNetPay so my tokens mint.\n\n` +
+      `App: https://upizeronetpay.pages.dev`;
+    const wa = issuer && issuer.phone ? whatsappLink(issuer.phone, waMsg) : null;
+
+    container.innerHTML = `
+      <div class="card" style="border-color: rgba(251,191,36,0.4);">
+        <h3 style="color:#fbbf24;">⏳ Waiting for ${escapeHtml(ord.escrowUpiId)} to confirm</h3>
+        <p>You submitted UPI reference <code>${escapeHtml(submitResp.utr)}</code> for ${rupeesPlain(ord.amount * 100)}.</p>
+        <p class="muted" style="font-size: 13px;">
+          Your tokens will mint the moment your escrow friend checks their bank
+          app and taps <strong>Confirm</strong>. You can nudge them on WhatsApp.
+        </p>
+        <div style="height: 10px"></div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          ${wa ? `<a class="btn btn-sm" style="background:#25D366; color:white; text-decoration:none;"
+                     href="${escapeHtml(wa)}" target="_blank" rel="noopener">💬 Nudge ${escapeHtml(issuer.upiId)}</a>` : ''}
+          <button id="cancelWait" class="btn ghost btn-sm">Back to home</button>
+        </div>
+        <div style="height: 14px"></div>
+        <div id="statusLive" class="muted" style="font-size: 12px;">Polling for confirmation…</div>
+      </div>
+    `;
+    container.querySelector('#cancelWait').addEventListener('click', () => navigate('home'));
+
+    const statusLive = container.querySelector('#statusLive');
+    let stopped = false;
+
+    async function poll() {
+      if (stopped || !document.body.contains(container)) return;
+      try {
+        const s = await api.loadStatus(ord.orderId);
+        if (s.status === 'completed') {
+          stopped = true;
+          statusLive.innerHTML = '✓ Confirmed — tokens minting…';
+          if (s.tokens && s.tokens.length) {
+            await store.addTokens(s.tokens);
+            await store.addLedger({
+              id: uuid(),
+              ts: Date.now(),
+              kind: 'load',
+              amount: ord.amount,
+              ref: ord.orderId,
+              note: 'Loaded ' + rupeesPlain(ord.amount * 100) + ' to ' + ord.escrowUpiId + ' (UTR ' + (s.utr || '?') + ')',
+            });
+          }
+          await renderDoneStep(container, ord, { tokens: s.tokens || [] });
+          toast('Confirmed! Your tokens are in the wallet', 'good');
+          await refresh();
+          return;
+        }
+        if (s.status === 'rejected') {
+          stopped = true;
+          statusLive.innerHTML = `<span style="color:#fca5a5;">✗ Rejected: ${escapeHtml(s.rejectionReason || 'no reason given')}</span>
+            <div style="height:8px"></div>
+            <button id="retry" class="btn btn-sm">Try again with a different UTR</button>`;
+          container.querySelector('#retry').addEventListener('click', () => navigate('load'));
+          return;
+        }
+        statusLive.textContent = 'Still waiting — last checked ' + new Date().toLocaleTimeString();
+      } catch (_) { /* ignore transient errors */ }
+      setTimeout(poll, 4000);
+    }
+    poll();
+  }
+
 
   // Client-side image downsizer — keeps upload under the server's 400 KB
   // limit no matter what phone camera the user is on.

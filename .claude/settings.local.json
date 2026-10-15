@@ -110,7 +110,31 @@
       "Bash(python3 /Users/mugilarasims/Desktop/zeronetpay/scripts/make_report.py)",
       "Bash(/usr/bin/curl -sS -m 8 https://upizeronetpay.pages.dev/js/views/pay.js)",
       "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w '  root HTTP %{http_code}\\\\n' https://upizeronetpay.pages.dev/)",
-      "Bash(/usr/bin/curl -sS -m 10 https://upizeronetpay.pages.dev/config.js)"
+      "Bash(/usr/bin/curl -sS -m 10 https://upizeronetpay.pages.dev/config.js)",
+      "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w \"  health HTTP %{http_code}\\\\n\" https://zeronetpayupi.onrender.com/api/health)",
+      "Bash(/usr/bin/curl -sS -m 10 -o /dev/null -w \"  admin  HTTP %{http_code}\\\\n\" -H \"X-Admin-Token: run\" https://zeronetpayupi.onrender.com/api/admin/status)",
+      "Bash(/usr/bin/curl -sS -m 10 -H \"X-Admin-Token: run\" https://zeronetpayupi.onrender.com/api/admin/status)",
+      "Bash(/usr/bin/curl -sS -m 15 -o /dev/null -w \"  health HTTP %{http_code}\\\\n\" https://zeronetpayupi-api.onrender.com/api/health)",
+      "Bash(/usr/bin/curl -sS -m 15 -o /dev/null -w \"  admin  HTTP %{http_code}\\\\n\" -H \"X-Admin-Token: run\" https://zeronetpayupi-api.onrender.com/api/admin/status)",
+      "Bash(/usr/bin/curl -sS -m 10 -H \"X-Admin-Token: run\" https://zeronetpayupi-api.onrender.com/api/admin/status)",
+      "Bash(node -c backend/server.js)",
+      "Bash(node -c backend/lib/escrow.js)",
+      "Bash(node -c backend/lib/escrow_relations.js)",
+      "Bash(node -c backend/routes/escrow_relations.js)",
+      "Bash(node -c backend/routes/load.js)",
+      "Bash(node -e \"require\\('./lib/escrow_relations'\\); require\\('./lib/escrow'\\); require\\('./lib/users'\\); require\\('./routes/escrow_relations'\\); require\\('./routes/load'\\); require\\('./routes/redeem'\\); require\\('./routes/disburse'\\); console.log\\('ALL MODULES LOAD CLEAN'\\);\")",
+      "Bash(node -e \"require\\('./lib/escrow_relations'\\); require\\('./lib/escrow'\\); require\\('./routes/escrow_relations'\\); require\\('./routes/load'\\); require\\('./routes/redeem'\\); require\\('./routes/disburse'\\); console.log\\('ALL MODULES LOAD CLEAN'\\);\")",
+      "Bash(curl -s https://zeronetpayupi.onrender.com/api/audit)",
+      "Bash(wrangler whoami *)",
+      "Bash(wrangler pages *)",
+      "Bash(curl -s -H \"Cache-Control: no-cache\" \"https://upizeronetpay.pages.dev/service-worker.js?nocache=$\\(date +%s\\)\")",
+      "Bash(curl -s -H \"Cache-Control: no-cache\" \"https://upizeronetpay.pages.dev/js/views/myescrow.js?nocache=$\\(date +%s\\)\")",
+      "Bash(curl -s -o /dev/null -w \"audit.html: HTTP %{http_code}\\\\n\" \"https://upizeronetpay.pages.dev/audit.html?nocache=$\\(date +%s\\)\")",
+      "Bash(curl -s -o /dev/null -w \"/audit:      HTTP %{http_code}\\\\n\" \"https://upizeronetpay.pages.dev/audit?nocache=$\\(date +%s\\)\")",
+      "Bash(curl -sv \"https://upizeronetpay.pages.dev/audit\")",
+      "Bash(curl -sI \"https://upizeronetpay.pages.dev/audit\")",
+      "Bash(curl -s -o /tmp/audit.html -w \"status=%{http_code} size=%{size_download}\\\\n\" \"https://upizeronetpay.pages.dev/audit.html\")",
+      "Bash(curl -s \"https://upizeronetpay.pages.dev/_redirects?nocache=$\\(date +%s\\)\")"
     ]
   }
 }

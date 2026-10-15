@@ -16,6 +16,7 @@ import { renderCashout } from './views/cashout.js';
 import { renderLock } from './views/lock.js';
 import { renderNotifications } from './views/notifications.js';
 import { renderMyEscrow } from './views/myescrow.js';
+import { renderLoadApprovals } from './views/loadapprovals.js';
 import { isUnlocked, lockApp } from './lock.js';
 
 const state = {
@@ -241,6 +242,8 @@ function renderTab(name) {
       return renderNotifications(root, state, { navigate, refresh });
     case 'myescrow':
       return renderMyEscrow(root, state, { navigate, refresh });
+    case 'loadapprovals':
+      return renderLoadApprovals(root, state, { navigate, refresh });
     default:
       return renderHome(root, state, { navigate, refresh });
   }

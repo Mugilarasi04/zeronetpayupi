@@ -104,6 +104,16 @@ export function renderHome(root, state, { navigate }) {
       </div>
     </div>
 
+    <div class="card tight" id="loadApprovalsTile" hidden style="background: var(--card-hi); border-color: rgba(251,191,36,0.45); margin-top: 10px;">
+      <div class="spaced">
+        <div>
+          <div style="font-weight: 700;">💰 Loads awaiting your confirmation <span id="loadApprovalsBadge" style="display:none; background:#ef4444; color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:999px; margin-left:4px;">0</span></div>
+          <small class="muted" id="loadApprovalsSubtitle">—</small>
+        </div>
+        <button class="btn btn-sm" data-go="loadapprovals">Open</button>
+      </div>
+    </div>
+
     <h2>Escrow operator</h2>
     <div class="card tight">
       <div class="spaced">
@@ -190,6 +200,7 @@ export function renderHome(root, state, { navigate }) {
   }
   refreshDisb();
   refreshEscrowCard();
+  refreshLoadApprovalsCard();
   // Light polling so a freshly-redeemed settlement appears within seconds.
   // Self-cleans: if the banner element has been wiped (user navigated to
   // another tab and view innerHTML was replaced), the timer clears itself.
@@ -203,7 +214,33 @@ export function renderHome(root, state, { navigate }) {
     }
     refreshDisb();
     refreshEscrowCard();
+    refreshLoadApprovalsCard();
   }, 5000);
+
+  // Updates the "Loads awaiting your confirmation" tile — only shown when
+  // this user is somebody's escrow AND there's a pending UTR to review.
+  async function refreshLoadApprovalsCard() {
+    const tile    = root.querySelector('#loadApprovalsTile');
+    const badge   = root.querySelector('#loadApprovalsBadge');
+    const sub     = root.querySelector('#loadApprovalsSubtitle');
+    if (!tile || !badge || !sub) return;
+    try {
+      const r = await api.pendingLoadConfirmations(state.user.id);
+      const n = (r.items || []).length;
+      if (n === 0) {
+        tile.hidden = true;
+        return;
+      }
+      tile.hidden = false;
+      badge.style.display = 'inline-block';
+      badge.textContent = String(n);
+      const total = r.items.reduce((s, it) => s + it.amount, 0);
+      sub.innerHTML = `<strong style="color:#fbbf24;">${n} load${n === 1 ? '' : 's'} · ${rupeesPlain(total * 100)}</strong> waiting — verify in your bank app and tap Confirm.`;
+    } catch (_) {
+      // offline — hide the tile silently
+      tile.hidden = true;
+    }
+  }
 
   // Updates the "My escrow & requests" tile with: active escrow status + a
   // red pill when there are pending escrow requests I need to approve.

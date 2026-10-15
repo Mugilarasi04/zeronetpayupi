@@ -112,6 +112,14 @@ export const api = {
   confirmLoad: (orderId, proofDataUrl) =>
     call('POST', '/load/confirm', { orderId, proofDataUrl }),
   loadStatus: (orderId) => call('GET', '/load/status/' + orderId),
+  submitLoadUtr: (orderId, utr, note) =>
+    call('POST', `/load/${orderId}/submit-utr`, { utr, note }),
+  confirmLoadByIssuer: (orderId, approverUserId) =>
+    call('POST', `/load/${orderId}/confirm`, { approverUserId }),
+  rejectLoadByIssuer: (orderId, approverUserId, reason) =>
+    call('POST', `/load/${orderId}/reject`, { approverUserId, reason }),
+  pendingLoadConfirmations: (userId) =>
+    call('GET', `/load/pending-confirmations/${userId}`),
   redeem: (receiverId, tokens, senderDevice) =>
     call('POST', '/redeem', { receiverId, tokens, senderDevice }),
   preflight: (tokens) => call('POST', '/preflight', { tokens }),
