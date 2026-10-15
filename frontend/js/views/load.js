@@ -2,6 +2,7 @@ import { api } from '../api.js';
 import { store } from '../store.js';
 import { rupeesPlain, toast, uuid, copyText, isMobile, escapeHtml, whatsappLink } from '../util.js';
 import { renderToCanvas } from '../qr.js';
+import { addPendingLoadOrder, removePendingLoadOrder } from '../loadsync.js';
 
 export function renderLoad(root, state, { refresh, navigate }) {
   root.innerHTML = `
@@ -192,6 +193,16 @@ export function renderLoad(root, state, { refresh, navigate }) {
       submit.innerHTML = '<span class="spinner"></span> Submitting…';
       try {
         const r = await api.submitLoadUtr(ord.orderId, utr, note);
+        // Register this load in the global background sync. Now if Alice
+        // closes the Load view, the home-screen auto-sync will pick up
+        // Bob's confirmation and drop tokens into the wallet regardless.
+        addPendingLoadOrder({
+          orderId: ord.orderId,
+          amount: ord.amount,
+          escrowUpiId: ord.escrowUpiId,
+          utr: r.utr,
+          submittedAt: Date.now(),
+        });
         toast('Submitted — waiting for your escrow to confirm', 'good');
         await renderWaitingStep(doneContainer, ord, r);
         container.hidden = true;
@@ -245,8 +256,12 @@ export function renderLoad(root, state, { refresh, navigate }) {
         if (s.status === 'completed') {
           stopped = true;
           statusLive.innerHTML = '✓ Confirmed — tokens minting…';
-          if (s.tokens && s.tokens.length) {
-            await store.addTokens(s.tokens);
+          // Dedupe: wallet already imported this via syncLoadOrders? Check first.
+          const existing = await store.listTokens();
+          const already = new Set(existing.map((t) => t.id));
+          const newToks = (s.tokens || []).filter((t) => !already.has(t.id));
+          if (newToks.length) {
+            await store.addTokens(newToks);
             await store.addLedger({
               id: uuid(),
               ts: Date.now(),
@@ -256,13 +271,15 @@ export function renderLoad(root, state, { refresh, navigate }) {
               note: 'Loaded ' + rupeesPlain(ord.amount * 100) + ' to ' + ord.escrowUpiId + ' (UTR ' + (s.utr || '?') + ')',
             });
           }
-          await renderDoneStep(container, ord, { tokens: s.tokens || [] });
+          removePendingLoadOrder(ord.orderId);
+          await renderDoneStep(container, ord, s);
           toast('Confirmed! Your tokens are in the wallet', 'good');
           await refresh();
           return;
         }
         if (s.status === 'rejected') {
           stopped = true;
+          removePendingLoadOrder(ord.orderId);
           statusLive.innerHTML = `<span style="color:#fca5a5;">✗ Rejected: ${escapeHtml(s.rejectionReason || 'no reason given')}</span>
             <div style="height:8px"></div>
             <button id="retry" class="btn btn-sm">Try again with a different UTR</button>`;
@@ -309,17 +326,23 @@ export function renderLoad(root, state, { refresh, navigate }) {
   }
 
   async function renderDoneStep(container, ord, mintResp) {
-    const tCount = mintResp.tokens.length;
-    const tValue = mintResp.tokens[0].value_paise;
+    const tokens = (mintResp && mintResp.tokens) || [];
+    const tCount = tokens.length;
+    const tValue = tCount > 0 ? tokens[0].value_paise : 100; // default denom = ₹1
+    const totalPaise = tCount > 0 ? tCount * tValue : (ord.amount * 100);
     container.innerHTML = `
       <div class="card" style="border-color: rgba(34,197,94,0.4);">
-        <h3 style="color: #86efac;">✔ Tokens minted</h3>
-        <p>${tCount} tokens · ${rupeesPlain(tCount * tValue)} now available offline.</p>
-        <p class="muted">You can now turn off your internet and pay anyone with the Pay tab.</p>
-        <div style="height: 8px"></div>
-        <button class="btn ghost" id="done">Back to home</button>
+        <h3 style="color: #86efac;">✔ ${rupeesPlain(totalPaise)} is in your wallet</h3>
+        <p>${tCount || Math.round(totalPaise / 100)} ₹1 tokens, now available offline.</p>
+        <p class="muted">You can turn off your internet and pay anyone with the Pay tab.</p>
+        <div style="height: 10px"></div>
+        <div style="display:flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn" id="payNow">Pay now →</button>
+          <button class="btn ghost" id="done">Back to home</button>
+        </div>
       </div>
     `;
     container.querySelector('#done').addEventListener('click', () => navigate('home'));
+    container.querySelector('#payNow').addEventListener('click', () => navigate('pay'));
   }
 }

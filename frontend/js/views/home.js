@@ -1,6 +1,7 @@
 import { rupeesPlain, formatRelative, escapeHtml, toast, isOnline } from '../util.js';
 import { store } from '../store.js';
 import { api } from '../api.js';
+import { getPendingLoadOrders } from '../loadsync.js';
 
 export function renderHome(root, state, { navigate }) {
   const total = state.tokens.reduce((s, t) => s + t.value_paise, 0);
@@ -56,6 +57,7 @@ export function renderHome(root, state, { navigate }) {
       </div>` : ''}
 
     <div id="disbBanner" hidden></div>
+    <div id="awaitingLoadBanner" hidden></div>
 
     <h2>How it works</h2>
     <div class="card tight">
@@ -201,6 +203,7 @@ export function renderHome(root, state, { navigate }) {
   refreshDisb();
   refreshEscrowCard();
   refreshLoadApprovalsCard();
+  refreshAwaitingLoads();
   // Light polling so a freshly-redeemed settlement appears within seconds.
   // Self-cleans: if the banner element has been wiped (user navigated to
   // another tab and view innerHTML was replaced), the timer clears itself.
@@ -215,7 +218,48 @@ export function renderHome(root, state, { navigate }) {
     refreshDisb();
     refreshEscrowCard();
     refreshLoadApprovalsCard();
+    refreshAwaitingLoads();
   }, 5000);
+
+  // Loads Alice has submitted a UTR for but Bob hasn't confirmed yet.
+  // Reads from localStorage (filled by the Load view when UTR is submitted).
+  // The global background sync in app.js removes entries as they complete,
+  // so this re-render naturally empties as confirmations arrive.
+  function refreshAwaitingLoads() {
+    const banner = root.querySelector('#awaitingLoadBanner');
+    if (!banner) return;
+    const pending = getPendingLoadOrders();
+    if (!pending.length) {
+      banner.hidden = true;
+      banner.innerHTML = '';
+      return;
+    }
+    const total = pending.reduce((s, p) => s + Number(p.amount || 0), 0);
+    banner.hidden = false;
+    banner.innerHTML = `
+      <div class="note" style="border-color: rgba(251,191,36,0.5);">
+        <div class="spaced">
+          <div>
+            <strong>⏳ ${pending.length} load${pending.length === 1 ? '' : 's'} awaiting confirmation</strong><br/>
+            <span class="muted">Total <strong>${rupeesPlain(total * 100)}</strong> — your escrow friend needs to verify the UPI reference and tap Confirm.</span>
+          </div>
+        </div>
+        <div style="height: 8px"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          ${pending.map((p) => `
+            <div class="card tight" style="margin:0; background: var(--card-hi);">
+              <div class="spaced">
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-weight: 700;">${rupeesPlain(p.amount * 100)} → ${escapeHtml(p.escrowUpiId || '—')}</div>
+                  <small class="muted">UTR <code>${escapeHtml(p.utr || '—')}</code> · submitted ${formatRelative(p.submittedAt)}</small>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
 
   // Updates the "Loads awaiting your confirmation" tile — only shown when
   // this user is somebody's escrow AND there's a pending UTR to review.

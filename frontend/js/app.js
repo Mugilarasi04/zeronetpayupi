@@ -17,6 +17,8 @@ import { renderLock } from './views/lock.js';
 import { renderNotifications } from './views/notifications.js';
 import { renderMyEscrow } from './views/myescrow.js';
 import { renderLoadApprovals } from './views/loadapprovals.js';
+import { syncLoadOrders, getPendingLoadOrders } from './loadsync.js';
+import { syncEscrowRequests } from './escrowsync.js';
 import { isUnlocked, lockApp } from './lock.js';
 
 const state = {
@@ -165,6 +167,37 @@ async function bootstrap() {
   setInterval(trySyncPending, 15_000);
   // Run once shortly after boot to catch any pending from a previous session.
   setTimeout(trySyncPending, 1500);
+
+  // Load-order background sync. Picks up tokens the moment Bob confirms,
+  // even if Alice is on a completely different screen or closed the Load view.
+  setInterval(syncAndRefreshLoads, 15_000);
+  setTimeout(syncAndRefreshLoads, 2500);
+  // Also sync whenever the tab regains focus — the common "come back after
+  // Bob WhatsApps you he confirmed" path.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncAndRefreshLoads();
+  });
+}
+
+async function syncAndRefreshLoads() {
+  if (!isOnline() || !state.user) return;
+  try {
+    const r = await syncLoadOrders();
+    if (r.imported > 0 || r.rejected > 0) {
+      // Something changed — reload wallet + ledger + re-render the current view.
+      await refresh();
+    }
+  } catch (e) {
+    console.warn('[loadsync] tick failed', e);
+  }
+  try {
+    const er = await syncEscrowRequests(state.user.id);
+    if (er.changed > 0) {
+      await refresh();
+    }
+  } catch (e) {
+    console.warn('[escrowsync] tick failed', e);
+  }
 }
 
 async function refresh() {
@@ -260,6 +293,8 @@ async function onUserChange(user) {
 // Expose a few things for use by views without circular imports
 window.ZNP.deviceFingerprint = deviceFingerprint;
 window.ZNP.trySyncPending = trySyncPending;
+window.ZNP.syncAndRefreshLoads = syncAndRefreshLoads;
+window.ZNP.getPendingLoadOrders = getPendingLoadOrders;
 
 bootstrap().catch((e) => {
   console.error(e);

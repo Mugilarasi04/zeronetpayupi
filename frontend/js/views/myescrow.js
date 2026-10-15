@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { toast, escapeHtml, whatsappLink } from '../util.js';
+import { addPendingEscrowRequest } from '../escrowsync.js';
 
 function fmtWhen(ts) {
   if (!ts) return '';
@@ -277,6 +278,15 @@ export async function renderMyEscrow(root, state, { navigate, refresh }) {
         toast('You already have a ' + r.status + ' request to this person', 'warn');
       } else {
         toast('Request sent — they need to approve in their app', 'good');
+      }
+      // Track this request so the global background sync can toast Alice
+      // the moment Bob approves/rejects, even from the home screen.
+      if (r.id && r.escrowUser) {
+        addPendingEscrowRequest({
+          id: r.id,
+          escrowUpiId: r.escrowUser.upiId,
+          escrowPhone: r.escrowUser.phone,
+        });
       }
       // WhatsApp notification — open on the user's device so they can
       // actually send the ping. The link opens the escrow's phone in WA.
