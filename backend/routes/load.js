@@ -249,13 +249,14 @@ router.post('/:orderId/submit-utr', async (req, res, next) => {
     const { utr, note } = req.body || {};
     if (!utr) return res.status(400).json({ error: 'utr required' });
 
-    // UPI UTR / RRN: 12 digits (NPCI/UPI reference). Accept 10–22 digits/alphanum
-    // because some banks pad with letters, and old test demos use shorter refs.
-    const trimmedUtr = String(utr).trim();
+    // Bank SMS often has prefixes/punctuation like "UPI/P2A/452198765432" or
+    // "Ref No. 4521-9876-5432". Strip everything non-alphanumeric and keep
+    // what's left; that's the actual reference.
+    const trimmedUtr = String(utr).replace(/[^A-Za-z0-9]/g, '');
     if (!/^[A-Za-z0-9]{6,32}$/.test(trimmedUtr)) {
       return res.status(400).json({
         error: 'invalid_utr',
-        message: 'UPI reference must be 6–32 digits/letters.',
+        message: 'UPI reference must contain 6–32 digits/letters.',
       });
     }
 
