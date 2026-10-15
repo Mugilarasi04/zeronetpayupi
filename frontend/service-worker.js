@@ -2,7 +2,7 @@
 // even with no internet (so you can receive offline payments after the
 // receiver puts the phone in airplane mode).
 
-const CACHE = 'znp-v30';
+const CACHE = 'znp-v31';
 const APP_SHELL = [
   '/',
   '/index.html',

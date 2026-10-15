@@ -24,8 +24,13 @@ function nudgeMessage(item) {
 
 export async function renderDisburse(root, state, { navigate, refresh }) {
   root.innerHTML = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>Disbursements</h2>
+      <span style="width: 44px"></span>
+    </div>
     <section class="card">
-      <h3>Disbursements from escrow</h3>
+      <h3>From escrow</h3>
       <p class="muted">
         When tokens are redeemed, this is the list of payouts the escrow holder
         still owes the receivers. Tap <strong>Pay now</strong> to send money
@@ -36,9 +41,10 @@ export async function renderDisburse(root, state, { navigate, refresh }) {
       <div style="height: 12px"></div>
       <div id="list"></div>
     </section>
-    <button id="back" class="btn ghost">Back to home</button>
+    <button id="back" class="btn ghost">← Back to home</button>
   `;
   root.querySelector('#back').addEventListener('click', () => navigate('home'));
+  root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
 
   const summary = root.querySelector('#summary');
   const list = root.querySelector('#list');

@@ -23,97 +23,255 @@
     --bad: #ef4444;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: radial-gradient(1200px 700px at 70% -10%, #1a2c52 0%, #0b1220 60%); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif; min-height: 100vh; }
-  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 60px; }
-  header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
-  .logo { width: 44px; height: 44px; display: grid; place-items: center; background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-radius: 12px; font-size: 22px; }
-  h1 { margin: 0 0 2px; font-size: 24px; letter-spacing: -0.3px; }
-  .sub { color: var(--muted); font-size: 13px; }
-  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+  html, body {
+    margin: 0; padding: 0;
+    background: radial-gradient(1200px 700px at 70% -10%, #1a2c52 0%, #0b1220 60%);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Sticky top bar with Back-to-home ---------------------------------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(11, 18, 32, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+  }
+  .topbar-inner {
+    max-width: 920px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .back-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--text); text-decoration: none;
+    padding: 8px 14px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--card);
+    font-size: 14px; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .back-link:hover, .back-link:active { background: var(--card-hi); border-color: var(--accent); }
+  .back-link .arrow { font-size: 16px; line-height: 1; }
+  .topbar-title {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 14px;
+  }
+  .topbar-title .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--good); box-shadow: 0 0 10px rgba(34,197,94,0.5);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .wrap { max-width: 920px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 {
+    margin: 0 0 8px;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    line-height: 1.15;
+    background: linear-gradient(135deg, #eaf0fb 0%, #8aa0c4 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .page-header .sub {
+    color: var(--muted); font-size: 15px;
+    max-width: 640px; line-height: 1.5;
+  }
+  @media (max-width: 600px) {
+    .page-header h1 { font-size: 24px; }
+    .page-header .sub { font-size: 14px; }
+  }
+
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
   .pill.good { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
   .pill.warn { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
   .pill.bad  { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; }
-  .card .label { color: var(--muted); font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase; }
-  .card .val { font-size: 30px; font-weight: 800; margin-top: 4px; }
-  .card .foot { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+  /* --- Invariant card: the headline ---------------------------------- */
   .invariant {
-    background: linear-gradient(180deg, var(--card) 0%, var(--card-hi) 100%);
+    background: linear-gradient(135deg, var(--card) 0%, var(--card-hi) 100%);
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 24px 26px;
     margin-bottom: 20px;
-    display: flex; align-items: center; justify-content: space-between; gap: 14px;
-    flex-wrap: wrap;
+    position: relative;
+    overflow: hidden;
   }
-  .invariant h2 { margin: 0 0 4px; font-size: 20px; }
-  .invariant .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--muted); }
-  .btn { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: white; border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 700; font-size: 14px; cursor: pointer; }
-  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 11px; letter-spacing: 0.3px; text-transform: uppercase; }
-  td.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--muted); word-break: break-all; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; }
-  footer { color: var(--muted); font-size: 12px; margin-top: 36px; text-align: center; line-height: 1.6; }
-  footer a { color: var(--accent); text-decoration: none; }
-  h2 { margin: 24px 0 10px; font-size: 15px; letter-spacing: 0.3px; text-transform: uppercase; color: var(--muted); }
-  .err { color: var(--bad); font-size: 13px; margin-top: 6px; }
-  .ok  { color: var(--good); font-size: 13px; margin-top: 6px; }
-  .skeleton { background: linear-gradient(90deg, var(--card) 25%, var(--card-hi) 50%, var(--card) 75%); background-size: 200% 100%; animation: shimmer 1.3s infinite; border-radius: 6px; color: transparent; }
-  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .invariant::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(600px 300px at 100% 0%, rgba(34,197,94,0.08), transparent 70%);
+    pointer-events: none;
+  }
+  .invariant.broken::before { background: radial-gradient(600px 300px at 100% 0%, rgba(239,68,68,0.10), transparent 70%); }
+  .invariant-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; position: relative; }
+  .invariant h2 { margin: 0; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .invariant .headline { font-size: 24px; font-weight: 800; margin-top: 6px; letter-spacing: -0.3px; line-height: 1.3; }
+  .invariant .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--muted); margin-top: 8px; display: block; padding: 6px 10px; background: var(--bg-2); border-radius: 6px; border: 1px solid var(--border); }
+  .invariant .right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
   @media (max-width: 600px) {
-    .invariant { flex-direction: column; align-items: flex-start; }
-    .card .val { font-size: 24px; }
+    .invariant .right { align-items: flex-start; width: 100%; }
+    .invariant .headline { font-size: 20px; }
   }
+
+  /* --- Metric cards --------------------------------------------------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .metric {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px;
+    transition: all 0.15s;
+  }
+  .metric:hover { border-color: rgba(59,130,246,0.4); transform: translateY(-1px); }
+  .metric .label { color: var(--muted); font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
+  .metric .val { font-size: 28px; font-weight: 800; margin-top: 6px; letter-spacing: -0.5px; }
+  .metric .foot { color: var(--muted); font-size: 12px; margin-top: 6px; line-height: 1.4; }
+
+  /* --- Buttons -------------------------------------------------------- */
+  .btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; border: 0; border-radius: 10px;
+    padding: 10px 18px; font-weight: 700; font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(59,130,246,0.35); }
+  .btn:active { transform: translateY(0); }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn.ghost:hover { background: var(--card-hi); }
+  .btn-sm { padding: 7px 14px; font-size: 13px; }
+
+  /* --- Section titles ------------------------------------------------- */
+  h2.section {
+    margin: 32px 0 12px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2.section::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* --- Root hash card ------------------------------------------------- */
+  .hash-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px;
+    display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .hash-card .label { color: var(--muted); font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; }
+  .hash-card .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; color: var(--text); margin-top: 6px; word-break: break-all; max-width: 540px; }
+
+  /* --- Table ---------------------------------------------------------- */
+  .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; background: var(--bg-2); }
+  tr:last-child td { border-bottom: 0; }
+  tr:hover td { background: rgba(59,130,246,0.04); }
+  td.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--muted); word-break: break-all; }
+  td .action-chip {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+    background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+  }
+
+  /* --- Row flex ------------------------------------------------------- */
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  /* --- Footer --------------------------------------------------------- */
+  footer {
+    color: var(--muted); font-size: 12px; margin-top: 48px;
+    text-align: center; line-height: 1.7;
+    padding-top: 24px; border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  footer .sep { opacity: 0.4; margin: 0 8px; }
+
+  /* --- States -------------------------------------------------------- */
+  .err { color: #fca5a5; font-size: 13px; margin-top: 8px; }
+  .ok  { color: #86efac; font-size: 13px; margin-top: 8px; }
+  .scrollx { overflow-x: auto; }
 </style>
 </head>
 <body>
+
+<!-- Sticky top bar — always visible so there's no "trapped on /audit" feeling. -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="back-link"><span class="arrow">←</span> Back to app</a>
+    <div class="topbar-title">
+      <span class="dot"></span>
+      <span>Live from server</span>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
-  <header>
-    <div class="logo">⚡</div>
-    <div>
-      <h1>ZeroNetPay — Public proof of reserves</h1>
-      <div class="sub">Full-reserve escrow verification · Live from the server · Nothing cached, nothing fake</div>
+  <div class="page-header">
+    <h1>Public proof of reserves</h1>
+    <div class="sub">
+      ZeroNetPay runs a 1:1 full-reserve system — every ₹1 token in circulation
+      is backed by ₹1 of real cash held in the escrow bank account. This page
+      shows the live numbers, updated every 10 seconds, and lets anyone verify
+      the hash-chained audit log end-to-end.
     </div>
-  </header>
+  </div>
 
+  <!-- Invariant headline -->
   <div class="invariant" id="invariantCard">
-    <div>
-      <h2>Reserve invariant</h2>
-      <div class="mono">escrow_balance == sum(unspent_token_values)</div>
-      <div class="ok" id="invariantMsg">checking…</div>
-    </div>
-    <div class="row">
-      <span class="pill" id="invariantPill">checking…</span>
-      <button class="btn" id="verifyNow">Verify now</button>
-    </div>
-  </div>
-
-  <div class="grid">
-    <div class="card"><div class="label">Escrow balance</div><div class="val" id="escrowVal">₹…</div><div class="foot">Fiat held in escrow bank account</div></div>
-    <div class="card"><div class="label">Tokens in circulation</div><div class="val" id="circVal">₹…</div><div class="foot">Signed, unspent, in user wallets</div></div>
-    <div class="card"><div class="label">Settled (lifetime)</div><div class="val" id="settledVal">₹…</div><div class="foot">Total ever redeemed</div></div>
-    <div class="card"><div class="label">Disbursed</div><div class="val" id="disbursedVal">₹…</div><div class="foot">Paid out to receiver UPIs</div></div>
-  </div>
-
-  <div class="card" style="padding: 16px 20px;">
-    <div class="row" style="justify-content: space-between; align-items: center;">
-      <div>
-        <div class="label" style="color: var(--muted); font-size: 11px; letter-spacing: 0.3px; text-transform: uppercase;">Audit log root hash</div>
-        <div class="mono" id="rootHash" style="margin-top: 4px; font-size: 13px;">—</div>
+    <div class="invariant-head">
+      <div style="min-width: 0; flex: 1;">
+        <h2>Reserve invariant</h2>
+        <div class="headline" id="invariantMsg">Checking…</div>
+        <code class="mono">escrow_balance == sum(unspent_token_values)</code>
       </div>
-      <button class="btn ghost" id="chainVerify">Verify entire chain</button>
+      <div class="right">
+        <span class="pill" id="invariantPill">checking…</span>
+        <button class="btn" id="verifyNow">↻ Refresh now</button>
+      </div>
     </div>
-    <div id="chainMsg" style="margin-top: 10px; font-size: 13px;"></div>
   </div>
 
-  <h2>Last state changes (append-only, hash-chained)</h2>
-  <div class="card" style="padding: 4px 0;">
+  <!-- Metric cards -->
+  <div class="grid">
+    <div class="metric">
+      <div class="label">Escrow balance</div>
+      <div class="val" id="escrowVal">₹…</div>
+      <div class="foot">Fiat held in escrow bank account</div>
+    </div>
+    <div class="metric">
+      <div class="label">Tokens in circulation</div>
+      <div class="val" id="circVal">₹…</div>
+      <div class="foot">Signed, unspent, in user wallets</div>
+    </div>
+    <div class="metric">
+      <div class="label">Settled (lifetime)</div>
+      <div class="val" id="settledVal">₹…</div>
+      <div class="foot">Total ever redeemed</div>
+    </div>
+    <div class="metric">
+      <div class="label">Disbursed</div>
+      <div class="val" id="disbursedVal">₹…</div>
+      <div class="foot">Paid out to receiver UPIs</div>
+    </div>
+  </div>
+
+  <!-- Audit log root hash -->
+  <h2 class="section">Audit chain</h2>
+  <div class="hash-card">
+    <div style="min-width: 0; flex: 1;">
+      <div class="label">Audit log root hash (sha-256)</div>
+      <div class="mono" id="rootHash">—</div>
+    </div>
+    <button class="btn ghost" id="chainVerify">Verify entire chain</button>
+  </div>
+  <div id="chainMsg" style="margin-top: 10px; font-size: 13px;"></div>
+
+  <!-- Audit log table -->
+  <h2 class="section">Recent state changes</h2>
+  <div class="table-card scrollx">
     <table id="logTable">
       <thead>
-        <tr><th>#</th><th>When</th><th>Action</th><th>Actor</th><th>Hash (sha-256)</th></tr>
+        <tr><th>#</th><th>When</th><th>Action</th><th>Actor</th><th>Hash</th></tr>
       </thead>
       <tbody id="logBody">
         <tr><td colspan="5" style="text-align:center; color: var(--muted); padding: 20px;">loading…</td></tr>
@@ -123,11 +281,16 @@
 
   <footer>
     This page is the public, verifiable audit surface of ZeroNetPay.<br/>
-    Every state change (token mint, redemption, disbursement, complaint) appends a row to a
-    hash-chained log — tampering with any historical row breaks the chain visibly.<br/>
-    <a href="/">← Back to the app</a> &nbsp;·&nbsp;
-    <a id="rawApi" href="#" target="_blank">Raw /api/audit JSON</a> &nbsp;·&nbsp;
-    <a id="rawLog" href="#" target="_blank">Raw audit log JSON</a>
+    Every state change (token mint, redemption, disbursement, complaint, escrow
+    change) appends a row to a hash-chained log — tampering with any historical
+    row breaks the chain visibly.<br/>
+    <div style="margin-top: 10px;">
+      <a href="/">← Back to app</a>
+      <span class="sep">·</span>
+      <a id="rawApi" href="#" target="_blank" rel="noopener">Raw /api/audit JSON</a>
+      <span class="sep">·</span>
+      <a id="rawLog" href="#" target="_blank" rel="noopener">Raw audit log</a>
+    </div>
   </footer>
 </div>
 
@@ -135,11 +298,11 @@
 (function () {
   const API = (window.ZNP_CONFIG && window.ZNP_CONFIG.apiBase) || '/api';
 
-  // Point raw-JSON links at the live backend so judges can click through.
   document.getElementById('rawApi').href = API + '/audit';
   document.getElementById('rawLog').href = API + '/audit/log';
 
-  const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (n) =>
+    '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sel = (id) => document.getElementById(id);
 
   async function loadAudit() {
@@ -150,17 +313,20 @@
       sel('settledVal').textContent   = money(r.totalSettled);
       sel('disbursedVal').textContent = money(r.totalDisbursed);
       const pill = sel('invariantPill');
-      const msg = sel('invariantMsg');
+      const msg  = sel('invariantMsg');
+      const card = sel('invariantCard');
       if (r.invariantHolds) {
         pill.className = 'pill good'; pill.textContent = '✓ holds';
-        msg.className = 'ok'; msg.textContent = '✓ Reserves fully back circulating tokens.';
+        msg.textContent = '✓ Reserves fully back circulating tokens';
+        card.classList.remove('broken');
       } else {
         pill.className = 'pill bad'; pill.textContent = '✗ broken';
-        msg.className = 'err'; msg.textContent = '✗ Invariant broken by ₹' + (r.invariantDeltaPaise / 100).toFixed(2) + ' — contact operator immediately.';
+        msg.textContent = '✗ Invariant broken by ' + money(r.invariantDeltaPaise / 100) + ' — contact operator';
+        card.classList.add('broken');
       }
     } catch (e) {
-      sel('invariantMsg').className = 'err';
-      sel('invariantMsg').textContent = 'Could not reach server: ' + e.message;
+      sel('invariantMsg').textContent = 'Could not reach server';
+      sel('invariantMsg').style.color = '#fca5a5';
     }
   }
 
@@ -177,8 +343,8 @@
         <tr>
           <td>${row.id}</td>
           <td>${new Date(row.ts).toLocaleString()}</td>
-          <td><span class="pill">${row.action}</span></td>
-          <td>${row.actor || '-'}</td>
+          <td><span class="action-chip">${row.action}</span></td>
+          <td class="mono">${row.actor || '—'}</td>
           <td class="mono">${row.hash}</td>
         </tr>
       `).join('');
@@ -209,8 +375,6 @@
   sel('verifyNow').addEventListener('click', () => { loadAudit(); loadLog(); });
   sel('chainVerify').addEventListener('click', verifyChain);
 
-  // Initial load + poll every 10 seconds so judges can watch it update
-  // in real time while payments happen.
   loadAudit(); loadLog();
   setInterval(() => { loadAudit(); loadLog(); }, 10_000);
 })();

@@ -14,9 +14,14 @@ export async function renderSettings(root, state, { navigate, refresh }) {
   const locked = current && current.locked;
 
   root.innerHTML = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>Settings</h2>
+      <span style="width: 44px"></span>
+    </div>
     <section class="card">
       <div class="spaced">
-        <h3 style="margin: 0;">Escrow account</h3>
+        <h3 style="margin: 0;">Default escrow account</h3>
         ${locked
           ? '<span class="chip good">🔒 locked</span>'
           : '<span class="chip warn">editable</span>'
@@ -77,7 +82,7 @@ export async function renderSettings(root, state, { navigate, refresh }) {
       </div>
     </section>
 
-    <button id="back" class="btn ghost">Back to home</button>
+    <button id="back" class="btn ghost">← Back to home</button>
   `;
 
   root.querySelector('#copyUpi').addEventListener('click', async () => {
@@ -128,4 +133,5 @@ export async function renderSettings(root, state, { navigate, refresh }) {
   });
 
   root.querySelector('#back').addEventListener('click', () => navigate('home'));
+  root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
 }

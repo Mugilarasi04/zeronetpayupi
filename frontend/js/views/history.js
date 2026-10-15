@@ -1,20 +1,27 @@
 import { formatTime, escapeHtml } from '../util.js';
 
-export function renderHistory(root, state) {
+export function renderHistory(root, state, opts) {
+  const navigate = opts && opts.navigate;
+  const topbar = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>History</h2>
+      <span style="width: 44px"></span>
+    </div>`;
   if (state.ledger.length === 0) {
-    root.innerHTML = `
+    root.innerHTML = topbar + `
       <div class="card">
-        <h3>History</h3>
+        <h3>Nothing yet</h3>
         <p class="muted">No transactions yet. Load money or receive a payment to see entries here.</p>
       </div>
     `;
+    if (navigate) root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
     return;
   }
 
   const groups = groupByDay(state.ledger);
-  root.innerHTML = `
+  root.innerHTML = topbar + `
     <section>
-      <h2 style="margin-top: 14px;">History</h2>
       ${groups
         .map(
           ([day, items]) => `
@@ -31,6 +38,7 @@ export function renderHistory(root, state) {
       </div>
     </section>
   `;
+  if (navigate) root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
 }
 
 function groupByDay(items) {

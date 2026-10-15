@@ -6,20 +6,23 @@ import { rupeesPlain, escapeHtml, toast, formatRelative } from '../util.js';
 // and either confirms (which mints Alice's tokens) or rejects.
 export async function renderLoadApprovals(root, state, { navigate, refresh }) {
   root.innerHTML = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>Loads awaiting your confirmation</h2>
+      <button id="refresh" class="btn ghost btn-sm" aria-label="refresh">↻</button>
+    </div>
     <section class="card">
-      <h3>Loads awaiting your confirmation</h3>
-      <p class="muted" style="font-size: 13px;">
+      <p class="muted" style="font-size: 13px; margin: 0;">
         These are people who picked you as their escrow. They say they've paid
         money into <strong>your</strong> UPI account. Open your bank or UPI app,
         verify each UPI reference matches a real credit, then Confirm or Reject.
       </p>
-      <div id="list" style="margin-top: 10px;"></div>
-      <div style="height: 12px"></div>
-      <button id="refresh" class="btn ghost btn-sm">↻ Refresh</button>
+      <div id="list" style="margin-top: 14px;"></div>
     </section>
-    <button id="back" class="btn ghost">Back to home</button>
+    <button id="back" class="btn ghost">← Back to home</button>
   `;
   root.querySelector('#back').addEventListener('click', () => navigate('home'));
+  root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
   root.querySelector('#refresh').addEventListener('click', () => load());
 
   const list = root.querySelector('#list');
@@ -86,11 +89,8 @@ export async function renderLoadApprovals(root, state, { navigate, refresh }) {
       b.addEventListener('click', async () => {
         const id = b.dataset.confirm;
         const item = items.find((x) => x.orderId === id);
-        const label = item ? `${rupeesPlain(item.amount * 100)} from ${item.payerUpi}` : 'this payment';
-        if (!confirm(
-          `Confirm you've actually received ${label} in your bank account?\n\n` +
-          `This mints that amount in tokens on their phone — you're now responsible for paying their receivers when they cash out.`,
-        )) return;
+        const label = item ? `₹${item.amount} from ${item.payerUpi}` : 'this payment';
+        if (!confirm(`Received ${label} in your bank? This mints their tokens.`)) return;
         b.disabled = true;
         try {
           await api.confirmLoadByIssuer(id, state.user.id);

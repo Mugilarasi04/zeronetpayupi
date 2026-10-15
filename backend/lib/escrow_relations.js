@@ -206,16 +206,55 @@ async function mineIncoming(escrowUserId) {
   return rows;
 }
 
+// Build every plausible stored-phone form from a user-typed string.
+// Users write phone numbers in many ways; we try each candidate against
+// the users table so Alice can find Bob regardless of spacing / "+91" /
+// a leading trunk "0" / inter-country prefix "0091".
+function candidatePhones(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length < 10) return [];
+  const set = new Set();
+  set.add(digits);
+  if (digits.length === 10) {
+    set.add('91' + digits);
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    // Trunk-code form (common in India): "0 98765 43210"
+    set.add('91' + digits.slice(1));
+  } else if (digits.length === 12 && digits.startsWith('91')) {
+    set.add(digits.slice(2)); // also accept bare 10-digit form
+  } else if (digits.length === 13 && digits.startsWith('091')) {
+    set.add('91' + digits.slice(3));
+    set.add(digits.slice(3));
+  } else if (digits.length === 13 && digits.startsWith('009')) {
+    set.add(digits.slice(2));
+  } else if (digits.length === 14 && digits.startsWith('0091')) {
+    set.add(digits.slice(2));
+    set.add(digits.slice(4));
+  }
+  return [...set];
+}
+
 async function lookupUserByUpiOrPhone(q) {
   await ready;
-  const upiMatch = await db.prepare('SELECT id, upi_id, phone FROM users WHERE upi_id = ?').get(q);
-  if (upiMatch) return upiMatch;
-  const digits = String(q || '').replace(/\D/g, '');
-  if (digits.length >= 10) {
-    const phoneMatch = await db.prepare('SELECT id, upi_id, phone FROM users WHERE phone = ?').get(digits.length === 10 ? '91' + digits : digits);
-    if (phoneMatch) return phoneMatch;
+  const trimmed = String(q || '').trim();
+  if (!trimmed) return null;
+
+  // UPI id form: name@bank
+  if (trimmed.includes('@')) {
+    const upiMatch = await db.prepare('SELECT id, upi_id, phone FROM users WHERE upi_id = ?').get(trimmed);
+    if (upiMatch) return upiMatch;
+    // No fallback — a thing with @ is a UPI id, not a phone.
+    return null;
   }
-  return null;
+
+  // Phone form: try every candidate normalisation
+  const cands = candidatePhones(trimmed);
+  if (!cands.length) return null;
+  const placeholders = cands.map(() => '?').join(',');
+  const row = await db.prepare(
+    `SELECT id, upi_id, phone FROM users WHERE phone IN (${placeholders}) LIMIT 1`,
+  ).get(...cands);
+  return row || null;
 }
 
 module.exports = {

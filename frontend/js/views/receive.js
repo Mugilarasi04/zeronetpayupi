@@ -4,10 +4,15 @@ import { startScanner, parseFrame, tryReassemble, decodePayloadFromText } from '
 import { api } from '../api.js';
 import { verifyPayload } from '../tokenverify.js';
 
-export function renderReceive(root, state, { refresh, trySyncPending }) {
+export function renderReceive(root, state, { refresh, trySyncPending, navigate }) {
   root.innerHTML = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>Receive offline payment</h2>
+      <span style="width: 44px"></span>
+    </div>
     <section class="card">
-      <h3>Receive offline payment</h3>
+      <h3>Scan sender's QR</h3>
       <p class="muted">Point your camera at the sender's QR code. Multi-frame transfers are reassembled automatically.</p>
       <div class="scan-wrap">
         <video id="cam" playsinline></video>
@@ -57,6 +62,7 @@ export function renderReceive(root, state, { refresh, trySyncPending }) {
   const canvas = root.querySelector('#scanCanvas');
   const progress = root.querySelector('#progress');
   const stop = root.querySelector('#stop');
+  root.querySelector('#backTop').addEventListener('click', () => navigate && navigate('home'));
   const result = root.querySelector('#result');
 
   let stopFn = null;

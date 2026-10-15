@@ -147,6 +147,20 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px 4p
 .chip.warn { color: var(--warn); border-color: rgba(245,158,11,0.35); }
 .chip.bad { color: var(--bad); border-color: rgba(239,68,68,0.35); }
 
+/* --- Shared view topbar: back + title + optional right action.
+       Every sub-page uses this so navigating back is one tap wherever you are. --- */
+.view-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin: 0 0 14px;
+}
+.view-topbar h2 {
+  margin: 0; font-size: 15px; font-weight: 700; color: var(--text);
+  text-transform: none; letter-spacing: 0;
+  flex: 1; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.view-topbar .btn-sm { min-width: 44px; }
+
 /* --- Hero balance --- */
 .hero {
   background:

@@ -28,6 +28,11 @@ function fmtCountdown(ms) {
 
 export async function renderNotifications(root, state, { navigate, refresh }) {
   root.innerHTML = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>Notifications</h2>
+      <button id="refresh" class="btn ghost btn-sm" aria-label="refresh">↻</button>
+    </div>
     <section class="card" id="escrowReqCard" hidden>
       <h3>🤝 Escrow requests to me</h3>
       <p class="muted" style="font-size: 13px;">
@@ -43,16 +48,15 @@ export async function renderNotifications(root, state, { navigate, refresh }) {
         payout is delayed, tap <strong>Raise complaint</strong> — the escrow operator gets
         flagged and you get a formal dispute record.</p>
       <div id="list" style="margin-top: 10px;"></div>
-      <div style="height: 12px"></div>
-      <button id="refresh" class="btn ghost btn-sm">↻ Refresh</button>
     </section>
-    <button id="back" class="btn ghost">Back to home</button>
+    <button id="back" class="btn ghost">← Back to home</button>
   `;
 
   const list = root.querySelector('#list');
   const escrowReqCard = root.querySelector('#escrowReqCard');
   const escrowReqList = root.querySelector('#escrowReqList');
   root.querySelector('#back').addEventListener('click', () => navigate('home'));
+  root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
   root.querySelector('#refresh').addEventListener('click', () => {
     load();
     loadEscrowRequests();

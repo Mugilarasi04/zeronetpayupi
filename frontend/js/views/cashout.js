@@ -33,6 +33,11 @@ export function renderCashout(root, state, { navigate, refresh }) {
 
   if (state.tokens.length === 0) {
     root.innerHTML = `
+      <div class="view-topbar">
+        <button id="backTop" class="btn ghost btn-sm">← Home</button>
+        <h2>Cash out</h2>
+        <span style="width: 44px"></span>
+      </div>
       <div class="card">
         <h3>Nothing to cash out</h3>
         <p class="muted">You have no tokens. Load money to mint your own, or receive tokens from someone else.</p>
@@ -44,12 +49,18 @@ export function renderCashout(root, state, { navigate, refresh }) {
     `;
     root.querySelector('#load').addEventListener('click', () => navigate('load'));
     root.querySelector('#receive').addEventListener('click', () => navigate('receive'));
+    root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
     return;
   }
 
   root.innerHTML = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>Cash out</h2>
+      <span style="width: 44px"></span>
+    </div>
     <section class="card">
-      <h3>Cash out tokens to your bank</h3>
+      <h3>To your bank</h3>
       <p class="muted">Convert tokens in your wallet into real money in your registered UPI account
         <strong>${escapeHtml(state.user.upiId)}</strong>. The escrow operator settles within seconds of redemption.</p>
 
@@ -94,6 +105,7 @@ export function renderCashout(root, state, { navigate, refresh }) {
   const go = root.querySelector('#go');
   const result = root.querySelector('#result');
   amt.focus();
+  root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
 
   for (const b of root.querySelectorAll('[data-amt]')) {
     b.addEventListener('click', () => {
@@ -161,6 +173,9 @@ export function renderCashout(root, state, { navigate, refresh }) {
         issued_at: t.issued_at,
         expires_at: t.expires_at,
         signature: t.signature,
+        signature_ed25519: t.signature_ed25519,     // dual-signed verification
+        issuer_user_id: t.issuer_user_id || null,   // federated escrow routing
+        issuer_upi_id:  t.issuer_upi_id  || null,
       }));
       let r;
       try {

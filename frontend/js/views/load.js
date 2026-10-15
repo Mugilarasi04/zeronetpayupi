@@ -5,9 +5,14 @@ import { renderToCanvas } from '../qr.js';
 
 export function renderLoad(root, state, { refresh, navigate }) {
   root.innerHTML = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>Load money</h2>
+      <span style="width: 44px"></span>
+    </div>
     <section class="card">
-      <h3>Load money into offline tokens</h3>
-      <p class="muted">Pay any amount via UPI to the escrow account. The same amount in cryptographically-signed tokens is minted to your device — those tokens then work offline.</p>
+      <h3>Into offline tokens</h3>
+      <p class="muted">Pay any amount via UPI to your escrow friend. They verify the credit and your signed tokens mint on this device — the tokens then work offline.</p>
       <label for="amt">Amount (₹)</label>
       <input id="amt" type="number" min="1" step="1" placeholder="100" inputmode="numeric" />
       <div style="height: 10px"></div>
@@ -17,6 +22,7 @@ export function renderLoad(root, state, { refresh, navigate }) {
     <div id="step2" hidden></div>
     <div id="step3" hidden></div>
   `;
+  root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
 
   const amt = root.querySelector('#amt');
   const go = root.querySelector('#go');

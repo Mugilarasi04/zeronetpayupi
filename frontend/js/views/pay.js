@@ -8,6 +8,11 @@ export function renderPay(root, state, { refresh, navigate }) {
   const total = state.tokens.reduce((s, t) => s + t.value_paise, 0);
   if (state.tokens.length === 0) {
     root.innerHTML = `
+      <div class="view-topbar">
+        <button id="backTop" class="btn ghost btn-sm">← Home</button>
+        <h2>Pay</h2>
+        <span style="width: 44px"></span>
+      </div>
       <div class="card">
         <h3>No tokens yet</h3>
         <p class="muted">Load money first so you have signed tokens to spend.</p>
@@ -15,12 +20,18 @@ export function renderPay(root, state, { refresh, navigate }) {
       </div>
     `;
     root.querySelector('#go').addEventListener('click', () => navigate('load'));
+    root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
     return;
   }
 
   root.innerHTML = `
+    <div class="view-topbar">
+      <button id="backTop" class="btn ghost btn-sm">← Home</button>
+      <h2>Send offline payment</h2>
+      <span style="width: 44px"></span>
+    </div>
     <section class="card">
-      <h3>Send offline payment</h3>
+      <h3>New payment</h3>
       <p class="muted">Wallet: <strong>${rupeesPlain(total)}</strong> · ${state.tokens.length} tokens</p>
       <label for="amt">Amount (₹)</label>
       <input id="amt" type="number" min="1" step="1" placeholder="10" inputmode="numeric" />
@@ -85,6 +96,7 @@ export function renderPay(root, state, { refresh, navigate }) {
   const confirmSent = root.querySelector('#confirmSent');
   const back = root.querySelector('#back');
   amt.focus();
+  root.querySelector('#backTop').addEventListener('click', () => navigate('home'));
 
   let activeFrames = [];
   let frameTimer = null;
@@ -153,6 +165,9 @@ export function renderPay(root, state, { refresh, navigate }) {
         issued_at: t.issued_at,
         expires_at: t.expires_at,
         signature: t.signature,
+        signature_ed25519: t.signature_ed25519,     // dual-signed, offline-verifiable
+        issuer_user_id: t.issuer_user_id || null,   // federated escrow routing
+        issuer_upi_id:  t.issuer_upi_id  || null,
       })),
       ts: Date.now(),
     };
