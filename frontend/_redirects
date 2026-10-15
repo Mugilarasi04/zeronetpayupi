@@ -1,7 +1,8 @@
-# Clean URL for the proof-of-reserves page: /audit → /audit.html
-/audit    /audit.html   200
+# Cloudflare Pages natively serves /audit.html as both /audit (HTTP 200) and
+# /audit.html (308 → /audit) via its auto-strip-html behavior, so no explicit
+# alias is needed. (Adding one creates a redirect loop because the alias
+# target gets stripped again.)
 
-# SPA fallback for everything else: deep-links drop into index.html so
-# the client-side router can take over. Real files under /js /css
-# /vendor /icons /audit.html are served from disk first.
+# SPA fallback: any URL that doesn't match a real file falls through to
+# index.html so the client-side router can take over.
 /*        /index.html   200
