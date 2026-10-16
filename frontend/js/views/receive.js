@@ -4,7 +4,7 @@ import { startScanner, parseFrame, tryReassemble, decodePayloadFromText } from '
 import { api } from '../api.js';
 import { verifyPayload } from '../tokenverify.js';
 
-export function renderReceive(root, state, { refresh, trySyncPending, navigate }) {
+export function renderReceive(root, state, { refresh, trySyncPending, navigate, syncState }) {
   root.innerHTML = `
     <div class="view-topbar">
       <button id="backTop" class="btn ghost btn-sm">← Home</button>
@@ -156,16 +156,53 @@ export function renderReceive(root, state, { refresh, trySyncPending, navigate }
     }));
     await store.addTokens(tagged);
 
+    // Rehydrate state.tokens so the Home-screen balance is correct the moment
+    // the user taps Home. Use syncState (state-only) instead of refresh()
+    // which would re-render this view and wipe the success message.
+    if (syncState) await syncState();
+
+    // Also add a ledger entry so History shows the receive and Home's
+    // "Recent activity" updates immediately.
+    try {
+      await store.addLedger({
+        id: uuid(),
+        ts: Date.now(),
+        kind: 'receive',
+        amount: total / 100,
+        ref: payload.from && payload.from.deviceId,
+        note: 'Received ' + rupeesPlain(total) + ' from ' + senderUpi,
+      });
+      if (syncState) await syncState();
+    } catch (_) { /* ledger is best-effort */ }
+
+    const newBalance = state.tokens.reduce((s, t) => s + t.value_paise, 0);
+
     result.hidden = false;
     result.innerHTML = `
       <div class="card" style="border-color: rgba(34,197,94,0.4);">
         <h3 style="color: #86efac;">✔ Payment received</h3>
-        <p style="font-size: 28px; font-weight: 700; margin: 8px 0;">${rupeesPlain(total)}</p>
+        <p style="font-size: 32px; font-weight: 800; margin: 8px 0;">${rupeesPlain(total)}</p>
         <p class="muted">From <strong>${senderUpi}</strong> · ${payload.tokens.length} tokens</p>
-        <p class="muted">Tokens are now in your wallet. You can re-spend them offline, or
-          tap <strong>Cash out</strong> to convert them to money in your bank when you're online.</p>
+        <div class="card tight" style="background: var(--card-hi); margin-top: 10px;">
+          <div class="spaced">
+            <div>
+              <small class="muted" style="font-size: 11px;">Your new balance</small>
+              <div style="font-weight: 800; font-size: 20px;">${rupeesPlain(newBalance)}</div>
+            </div>
+            <div style="text-align:right;">
+              <small class="muted" style="font-size: 11px;">${state.tokens.length} tokens</small>
+            </div>
+          </div>
+        </div>
+        <div style="height: 10px"></div>
+        <p class="muted" style="font-size: 12px;">Tokens are now in your wallet. You can re-spend them
+          offline, or tap <strong>Cash out</strong> to convert them to money in your bank when you're online.</p>
         <div style="height: 8px"></div>
-        <button id="more" class="btn ghost">Receive another</button>
+        <div style="display:flex; gap: 8px; flex-wrap: wrap;">
+          <button id="goHome" class="btn btn-sm">Go to home</button>
+          <button id="goCashout" class="btn ghost btn-sm">Cash out →</button>
+          <button id="more" class="btn ghost btn-sm">Receive another</button>
+        </div>
       </div>
     `;
     result.querySelector('#more').addEventListener('click', () => {
@@ -176,8 +213,9 @@ export function renderReceive(root, state, { refresh, trySyncPending, navigate }
       progress.textContent = 'Initialising camera…';
       startCam();
     });
+    result.querySelector('#goHome').addEventListener('click', () => navigate && navigate('home'));
+    result.querySelector('#goCashout').addEventListener('click', () => navigate && navigate('cashout'));
 
-    await refresh();
     // Try to settle immediately if we have internet.
     if (isOnline()) trySyncPending();
   }

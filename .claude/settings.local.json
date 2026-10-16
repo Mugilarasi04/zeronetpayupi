@@ -138,7 +138,10 @@
       "Bash(curl -s \"https://upizeronetpay.pages.dev/service-worker.js?nocache=$\\(date +%s\\)\")",
       "Bash(curl -s -o /dev/null -w \"load.js: HTTP %{http_code}\\\\n\" \"https://upizeronetpay.pages.dev/js/views/load.js?nocache=$\\(date +%s\\)\")",
       "Bash(curl -s -o /dev/null -w \"loadapprovals.js: HTTP %{http_code}\\\\n\" \"https://upizeronetpay.pages.dev/js/views/loadapprovals.js?nocache=$\\(date +%s\\)\")",
-      "Bash(curl -s \"https://upizeronetpay.pages.dev/js/views/load.js?nocache=$\\(date +%s\\)\")"
+      "Bash(curl -s \"https://upizeronetpay.pages.dev/js/views/load.js?nocache=$\\(date +%s\\)\")",
+      "Bash(node --check js/secure-store.js)",
+      "Bash(node --check js/app.js)",
+      "Bash(node --check js/views/receive.js)"
     ]
   }
 }

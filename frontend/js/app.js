@@ -200,7 +200,9 @@ async function syncAndRefreshLoads() {
   }
 }
 
-async function refresh() {
+// Rehydrate state from the local store (and settings from server if online).
+// Does NOT touch the DOM — callers that want a visual update call refresh().
+async function syncState() {
   state.tokens = await store.listTokens();
   state.pending = await store.listPending();
   state.ledger = await store.listLedger();
@@ -209,6 +211,10 @@ async function refresh() {
   } catch (_) {
     /* offline — keep last known settings */
   }
+}
+
+async function refresh() {
+  await syncState();
   // Re-render the current view if any.
   const current = document.querySelector('.tab.active');
   if (current) renderTab(current.dataset.tab);
@@ -261,7 +267,7 @@ function renderTab(name) {
     case 'pay':
       return renderPay(root, state, { navigate, refresh });
     case 'receive':
-      return renderReceive(root, state, { navigate, refresh, trySyncPending });
+      return renderReceive(root, state, { navigate, refresh, trySyncPending, syncState });
     case 'history':
       return renderHistory(root, state, { navigate, refresh });
     case 'settings':

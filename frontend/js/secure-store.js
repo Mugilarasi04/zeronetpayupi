@@ -139,16 +139,23 @@ async function decryptToken(row) {
 // removeTokens / getToken / clearTokens so views don't need to change.
 const secureStore = {
   async addTokens(tokens) {
+    if (!tokens || !tokens.length) return;
+    // CRITICAL: encrypt EVERY token BEFORE opening the IndexedDB transaction.
+    // SubtleCrypto.encrypt yields the microtask queue, and IndexedDB auto-
+    // commits any transaction that goes idle during an await — so doing
+    // `tx = ...; await encrypt; store.put()` would hit TransactionInactiveError
+    // on every token after the first (silently losing them, which is the
+    // "received payment shows ₹0" bug).
+    const encrypted = await Promise.all(tokens.map((t) => encryptToken(t)));
     const d = await db();
-    const tx = d.transaction('tokens', 'readwrite');
-    const store = tx.objectStore('tokens');
-    for (const t of tokens) {
-      const enc = await encryptToken(t);
-      store.put(enc);
-    }
     return new Promise((res, rej) => {
+      const tx = d.transaction('tokens', 'readwrite');
+      const store = tx.objectStore('tokens');
+      // All put() calls scheduled synchronously — no awaits inside the tx.
+      for (const enc of encrypted) store.put(enc);
       tx.oncomplete = () => res();
       tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error || new Error('tx aborted'));
     });
   },
   async listTokens() {
