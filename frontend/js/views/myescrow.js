@@ -281,7 +281,8 @@ export async function renderMyEscrow(root, state, { navigate, refresh }) {
       }
       // Track this request so the global background sync can toast Alice
       // the moment Bob approves/rejects, even from the home screen.
-      if (r.id && r.escrowUser) {
+      // Skip already-decided duplicates — nothing's pending there.
+      if (r.id && r.escrowUser && r.status === 'requested') {
         addPendingEscrowRequest({
           id: r.id,
           escrowUpiId: r.escrowUser.upiId,

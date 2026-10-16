@@ -50,14 +50,23 @@ function cfKey(req) {
   return ipKeyGenerator(raw);
 }
 
-// 10 writes/minute from any IP against auth/load/redeem/pair endpoints.
-// Reads (GET) stay unlimited.
+// Write-rate guardrail against auth/load/redeem/pair endpoints.
+//
+// Why 60/min and GET-exempt:
+//   - Shared-IP households (Alice + Bob on the same WiFi) are a totally
+//     normal escrow pair. A low limit punishes the honest-case.
+//   - Status polling (/load/status, /load/pending-confirmations,
+//     /escrow/outgoing, etc.) is unlimited GET — those are read-only
+//     and already covered by the global server limits.
+//   - A legit user generating 1 write/second sustained is extraordinary;
+//     60/min still blocks any realistic brute-force or spam attack.
 const writeLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 10,
+  limit: 60,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   keyGenerator: cfKey,
+  skip: (req) => req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS',
   message: { error: 'rate_limited', message: 'Too many requests. Try again in a minute.' },
 });
 

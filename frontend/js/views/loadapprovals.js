@@ -91,14 +91,34 @@ export async function renderLoadApprovals(root, state, { navigate, refresh }) {
         const item = items.find((x) => x.orderId === id);
         const label = item ? `₹${item.amount} from ${item.payerUpi}` : 'this payment';
         if (!confirm(`Received ${label} in your bank? This mints their tokens.`)) return;
+        const originalText = b.innerHTML;
         b.disabled = true;
+        b.innerHTML = '<span class="spinner"></span> Minting…';
         try {
-          await api.confirmLoadByIssuer(id, state.user.id);
-          toast('Confirmed — their tokens are minting', 'good');
+          const r = await api.confirmLoadByIssuer(id, state.user.id);
+          toast(
+            `✓ Confirmed ${label} — ${(r.tokens || []).length || Math.round((item && item.amount) || 0)} ₹1 tokens minted on their phone`,
+            'good',
+          );
           await load();
         } catch (e) {
-          toast(e.message || 'Confirm failed', 'bad');
+          const msg = String(e.message || '');
+          if (msg === 'rate_limited' || /rate.limited/i.test(msg)) {
+            toast('Hit the rate limit — wait a few seconds and try again', 'warn');
+          } else if (/not_awaiting_confirmation/i.test(msg)) {
+            toast('This load is no longer waiting — the list may be stale, refreshing…', 'warn');
+            await load();
+          } else if (/only the escrow user/i.test(msg)) {
+            toast('You are not the escrow for this load — refresh and try again', 'bad');
+            await load();
+          } else if (/already completed/i.test(msg)) {
+            toast('Already confirmed — refreshing the list', 'warn');
+            await load();
+          } else {
+            toast(msg || 'Confirm failed', 'bad');
+          }
           b.disabled = false;
+          b.innerHTML = originalText;
         }
       }),
     );
@@ -110,14 +130,22 @@ export async function renderLoadApprovals(root, state, { navigate, refresh }) {
           "I don't see this credit in my bank app",
         );
         if (reason === null) return;
+        const originalText = b.innerHTML;
         b.disabled = true;
+        b.innerHTML = '<span class="spinner"></span> Rejecting…';
         try {
           await api.rejectLoadByIssuer(id, state.user.id, reason);
-          toast('Rejected', 'good');
+          toast('Rejected — the payer has been notified', 'good');
           await load();
         } catch (e) {
-          toast(e.message || 'Reject failed', 'bad');
+          const msg = String(e.message || '');
+          if (msg === 'rate_limited' || /rate.limited/i.test(msg)) {
+            toast('Hit the rate limit — wait a few seconds and try again', 'warn');
+          } else {
+            toast(msg || 'Reject failed', 'bad');
+          }
           b.disabled = false;
+          b.innerHTML = originalText;
         }
       }),
     );
