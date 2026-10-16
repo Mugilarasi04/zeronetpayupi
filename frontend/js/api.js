@@ -61,9 +61,13 @@ async function silentReRegister() {
   } catch (_) { /* ignore */ }
   if (!stored || !stored.upiId || !stored.deviceId) return null;
   try {
+    // CRITICAL: forward the phone too. Without it the re-registered account
+    // can't be found by phone lookup, so no one can pick this user as
+    // their escrow after a Render DB wipe.
     const r = await rawCall('POST', '/auth/register', {
       upiId: stored.upiId,
       deviceId: stored.deviceId,
+      phone: stored.phone || undefined,
     });
     if (r && r.user) {
       // The server assigned a new id — update localStorage.

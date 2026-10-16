@@ -140,6 +140,22 @@ async function bootstrap() {
     }
   }
 
+  // Render's free-tier SQLite is wiped on every restart, so a user who
+  // registered on an older deploy may no longer exist on the server.
+  // Proactively re-register on every boot (same deviceId → idempotent).
+  // Without this, nobody can pick them as their escrow after a backend
+  // restart because the lookup can't find them.
+  if (state.user && state.user.upiId && state.user.deviceId && isOnline()) {
+    try {
+      const r = await api.register(state.user.upiId, state.user.deviceId, state.user.phone);
+      if (r && r.user && r.user.id !== state.user.id) {
+        // Server assigned a new id — update local identity.
+        state.user = r.user;
+        localStorage.setItem('znp.user', JSON.stringify(r.user));
+      }
+    } catch (_) { /* offline/transient — the silentReRegister path still catches 404s */ }
+  }
+
   if (!state.user) {
     navigate('onboard');
   } else if (!isUnlocked()) {

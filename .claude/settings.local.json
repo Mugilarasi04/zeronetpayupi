@@ -141,7 +141,10 @@
       "Bash(curl -s \"https://upizeronetpay.pages.dev/js/views/load.js?nocache=$\\(date +%s\\)\")",
       "Bash(node --check js/secure-store.js)",
       "Bash(node --check js/app.js)",
-      "Bash(node --check js/views/receive.js)"
+      "Bash(node --check js/views/receive.js)",
+      "Bash(curl -s https://zeronetpayupi.onrender.com/ -o /dev/null -w 'root: %{http_code}\\\\n')",
+      "Bash(curl -s https://zeronetpayupi.onrender.com/api/audit/log?limit=3)",
+      "Bash(python3 -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\('rows:',len\\(d.get\\('rows',[]\\)\\),'rootHash:',d.get\\('rootHash',''\\).startswith\\('0'\\)\\)\")"
     ]
   }
 }

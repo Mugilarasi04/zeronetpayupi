@@ -309,7 +309,12 @@ export async function renderMyEscrow(root, state, { navigate, refresh }) {
     } catch (e) {
       const msg = e.message || '';
       if (msg === 'escrow_user_not_registered' || /not.*regist/i.test(msg)) {
-        toast('That person isn\'t on ZeroNetPay yet — ask them to onboard first', 'bad');
+        // On Render's free tier the SQLite DB is wiped at every deploy.
+        // Give the user a clear next step instead of a dead-end error.
+        toast(
+          'That number isn\'t on ZeroNetPay yet — ask them to open the app once (the server was restarted recently, so they may need to re-open it)',
+          'bad',
+        );
       } else if (/you cannot be your own escrow/i.test(msg)) {
         toast('You can\'t pick yourself as your own escrow', 'bad');
       } else {

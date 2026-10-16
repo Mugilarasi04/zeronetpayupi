@@ -133,4 +133,34 @@ router.get('/audit', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// POST /api/admin/wipe
+// Nuke the entire DB — users, tokens, settlements, escrow relationships, load
+// orders, audit log. Needed because Render's free-tier SQLite is already
+// wiped on every restart; this gives a user-facing way to start clean too.
+// Keeps schema intact; drops rows only.
+router.post('/wipe', async (req, res, next) => {
+  try {
+    const tables = [
+      'tokens', 'settlements', 'load_orders',
+      'escrow_relationships', 'users',
+      'audit_log', 'pair_codes', 'app_settings',
+    ];
+    const wiped = {};
+    for (const t of tables) {
+      try {
+        const before = await db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get();
+        await db.exec(`DELETE FROM ${t}`);
+        wiped[t] = before ? before.n : 0;
+      } catch (e) {
+        wiped[t] = 'skip (' + (e.message || 'unknown') + ')';
+      }
+    }
+    // Re-seed the escrow_account row with 0 balance (some queries assume id=1 exists).
+    try {
+      await db.exec(`INSERT OR IGNORE INTO escrow_account(id, balance_paise, updated_at) VALUES (1, 0, ${Date.now()})`);
+    } catch (_) {}
+    res.json({ ok: true, wiped });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;

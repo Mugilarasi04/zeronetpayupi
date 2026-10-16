@@ -348,11 +348,15 @@ export function renderHome(root, state, { navigate }) {
   }
 
   root.querySelector('#reset').addEventListener('click', async () => {
-    if (!confirm('This will wipe your local tokens, ledger, and unlink this device. Continue?')) return;
-    await store.clearTokens();
-    await store.clearLedger();
-    localStorage.removeItem('znp.user');
-    localStorage.removeItem('znp.device');
+    if (!confirm('This will wipe your local tokens, ledger, pending loads, escrow requests and unlink this device. Continue?')) return;
+    try { await store.clearTokens(); } catch (_) {}
+    try { await store.clearLedger(); } catch (_) {}
+    // Wipe IndexedDB entirely to clear any encrypted-at-rest leftovers.
+    try { indexedDB.deleteDatabase('zeronetpay'); } catch (_) {}
+    // Nuke every localStorage key the app owns + the unlock session flag.
+    const keys = ['znp.user', 'znp.device', 'znp.pendingLoads', 'znp.pendingEscrowRequests'];
+    for (const k of keys) localStorage.removeItem(k);
+    try { sessionStorage.removeItem('znp.unlocked'); } catch (_) {}
     toast('Device wiped — restart from onboarding', 'good');
     setTimeout(() => location.reload(), 600);
   });
